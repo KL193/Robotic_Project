@@ -16,12 +16,21 @@ print("Python executable:", sys.executable)
 init(autoreset=True)
 
 # ==== Configuration ====
-duration = 60  # seconds to record
+duration = 20  # seconds to record
 sample_rate = 44100  # sampling frequency
 threshold_volume = 0.01  # silence threshold (float normalized)
 pause_threshold_sec = 0.3  # minimal pause duration to consider as a pause
 
-filler_words = {"um", "uh", "like"}
+# Expanded filler word list
+filler_words = {
+    "um", "uh", "er", "ah", "hmm",
+    "like", "you know", "i mean",
+    "basically", "actually", "literally",
+    "just", "so", "well", "okay",
+    "right", "alright", "kind of", "sort of",
+    "you see", "you get me", "you feel me",
+    "anyway", "stuff like that", "things like that"
+}
 
 # ==== LED Simulation ====
 def simulate_led(color, message):
@@ -74,7 +83,7 @@ def analyze_audio(audio_data):
     # Normalize if input is int16
     if audio_data.dtype == np.int16 or audio_data.dtype == np.int32:
         audio_data = audio_data.astype(np.float32) / 32767
-    
+
     volume = np.abs(audio_data).mean()
     duration_secs = len(audio_data) / sample_rate
     silence_ratio = np.sum(np.abs(audio_data) < threshold_volume) / len(audio_data)
@@ -99,7 +108,6 @@ def analyze_audio(audio_data):
     for i in range(0, len(audio_data), frame_size):
         frame = silent_frames[i:i+frame_size]
         if np.all(frame):
-            # frame is silent
             if start_pause is None:
                 start_pause = i
         else:
@@ -127,7 +135,7 @@ def analyze_audio(audio_data):
 
     return pauses, pause_durations
 
-# ==== Filler Words and Speech Speed Analysis ====
+# ==== Transcript Analysis (Filler Words + Speed) ====
 def analyze_transcript(text, duration_secs, pauses):
     if not text:
         print(Fore.RED + "No transcript to analyze for filler words or speech speed.")
@@ -136,19 +144,25 @@ def analyze_transcript(text, duration_secs, pauses):
     words = text.split()
     total_words = len(words)
 
-    # Count filler words
-    filler_count = sum(words.count(fw) for fw in filler_words)
+    # Count individual filler word occurrences
+    filler_count_map = {fw: words.count(fw) for fw in filler_words if fw in words}
+    total_filler_count = sum(filler_count_map.values())
 
     # Effective speaking time = total duration - total pause time (approx)
-    effective_speaking_time = max(duration_secs - pauses * pause_threshold_sec, 0.1)  # avoid zero division
+    effective_speaking_time = max(duration_secs - pauses * pause_threshold_sec, 0.1)
+    speech_speed_wpm = (total_words / effective_speaking_time) * 60
 
-    speech_speed_wpm = (total_words / effective_speaking_time) * 60  # words per minute
+    print(Fore.WHITE + f"\n🧠 Filler words detected: {total_filler_count} ({(total_filler_count / total_words) * 100:.2f}%)")
 
-    print(Fore.WHITE + f"\n🧠 Filler words detected: {filler_count} ({(filler_count/total_words)*100:.2f}%)")
-    print(Fore.WHITE + f"🚀 Speech Speed: {speech_speed_wpm:.1f} words per minute")
+    if filler_count_map:
+        print(Fore.YELLOW + "🔍 Filler Word Breakdown:")
+        for word, count in filler_count_map.items():
+            print(f"   - '{word}': {count} time(s)")
 
-    # Give simple feedback
-    if filler_count > 3:
+    print(Fore.WHITE + f"\n🚀 Speech Speed: {speech_speed_wpm:.1f} words per minute")
+
+    # Feedback
+    if total_filler_count > 3:
         simulate_led("red", "⚠️ Too many filler words")
     else:
         simulate_led("green", "✅ Good filler word usage")
