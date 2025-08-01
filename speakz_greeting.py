@@ -1,11 +1,12 @@
 import azure.cognitiveservices.speech as speechsdk
 from datetime import datetime
+import subprocess
+import os
+import sys
 
-# Replace with your Azure credentials
+# ==== Azure Speech Config ====
 speech_key = "1a0oyWt4KJ7CiF6OjOqZXq4cYzbkDCx8TWAqnVQJoZ4LjiKZyA0GJQQJ99BGACYeBjFXJ3w3AAAYACOGMrMv"
-service_region = "eastus"  # Example: eastus, westeurope etc.
-
-# Set up Azure Speech Config
+service_region = "eastus"
 speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
 speech_config.speech_synthesis_voice_name = "en-GB-RyanNeural"
 
@@ -68,10 +69,16 @@ def ask_practice():
         speak_text("Sorry, I didn't catch that. Please say yes or no next time.")
 
 def record_and_analyze():
-    """Placeholder for voice analysis module."""
-    speak_text("Recording your presentation... This feature will be implemented next.")
+    """Run the live transcription and analysis script."""
+    try:
+        print("[INFO] Starting live_transcription.py...")
+        script_path = os.path.join(os.path.dirname(__file__), "live_transcription.py")
+        subprocess.run([sys.executable, script_path], check=True)
+        print("[INFO] Analysis completed.")
+    except subprocess.CalledProcessError as e:
+        print(f"[ERROR] live_transcription.py failed: {e}")
 
-# Run the program
+# ==== Entry Point ====
 if __name__ == "__main__":
     speak_greeting()
     ask_practice()

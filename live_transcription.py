@@ -1,27 +1,18 @@
 import sys
-print("Python executable:", sys.executable)
-print("sys.path:")
-for p in sys.path:
-    print("  ", p)
-
 import sounddevice as sd
 import numpy as np
 import scipy.io.wavfile as wav
 import time
 from colorama import Fore, init
-import speech_recognition as sr  # speech to text
-
-print("Python executable:", sys.executable)
+import speech_recognition as sr
 
 init(autoreset=True)
 
-# ==== Configuration ====
-duration = 20  # seconds to record
-sample_rate = 44100  # sampling frequency
-threshold_volume = 0.01  # silence threshold (float normalized)
-pause_threshold_sec = 0.3  # minimal pause duration to consider as a pause
+duration = 20
+sample_rate = 44100
+threshold_volume = 0.01
+pause_threshold_sec = 0.3
 
-# Expanded filler word list
 filler_words = {
     "um", "uh", "er", "ah", "hmm",
     "like", "you know", "i mean",
@@ -32,7 +23,6 @@ filler_words = {
     "anyway", "stuff like that", "things like that"
 }
 
-# ==== LED Simulation ====
 def simulate_led(color, message):
     color_map = {
         "green": Fore.GREEN,
@@ -47,22 +37,19 @@ def simulate_led(color, message):
 def blink_led(color, times=3):
     for _ in range(times):
         simulate_led(color, "●")
-        print(" ", end="\r")  # off state
+        print(" ", end="\r")
         time.sleep(0.2)
 
-# ==== Recording ====
 def record_audio(filename="recording.wav"):
     print(Fore.CYAN + "🎤 Recording started... Speak now!")
     simulate_led("blue", "Listening...")
     audio = sd.rec(int(duration * sample_rate), samplerate=sample_rate, channels=1, dtype='float32')
     sd.wait()
-    # Convert float32 (-1.0 to 1.0) to int16 PCM (-32768 to 32767)
     audio_int16 = np.int16(audio * 32767)
     wav.write(filename, sample_rate, audio_int16)
     print(Fore.CYAN + "✅ Recording saved.")
     return filename, audio_int16.flatten()
 
-# ==== Speech Recognition ====
 def transcribe_audio(filename):
     recognizer = sr.Recognizer()
     with sr.AudioFile(filename) as source:
@@ -78,9 +65,7 @@ def transcribe_audio(filename):
         print(Fore.RED + f"❌ Could not request results from Google Speech Recognition service; {e}")
         return ""
 
-# ==== Audio Feature Analysis ====
 def analyze_audio(audio_data):
-    # Normalize if input is int16
     if audio_data.dtype == np.int16 or audio_data.dtype == np.int32:
         audio_data = audio_data.astype(np.float32) / 32767
 
@@ -90,7 +75,6 @@ def analyze_audio(audio_data):
 
     print(Fore.WHITE + f"\n🔍 Duration: {duration_secs:.2f} sec | Avg Volume: {volume:.5f} | Silence: {silence_ratio:.2%}")
 
-    # Volume feedback
     if volume > 0.05:
         simulate_led("red", "⚠️ Too loud!")
     elif volume < 0.005:
@@ -98,8 +82,7 @@ def analyze_audio(audio_data):
     else:
         simulate_led("green", "✅ Volume is good")
 
-    # Pause detection based on silence segments longer than pause_threshold_sec
-    frame_size = int(sample_rate * 0.05)  # 50 ms frames
+    frame_size = int(sample_rate * 0.05)
     silent_frames = np.abs(audio_data) < threshold_volume
     pauses = 0
     pause_durations = []
@@ -117,14 +100,12 @@ def analyze_audio(audio_data):
                     pauses += 1
                     pause_durations.append(pause_length_sec)
                 start_pause = None
-    # Check for pause at end
     if start_pause is not None:
         pause_length_sec = (len(audio_data) - start_pause) / sample_rate
         if pause_length_sec >= pause_threshold_sec:
             pauses += 1
             pause_durations.append(pause_length_sec)
 
-    # Pause feedback
     if pauses > 3:
         blink_led("yellow", times=3)
         print(Fore.YELLOW + f"⚠️ Too many pauses detected: {pauses}")
@@ -135,7 +116,6 @@ def analyze_audio(audio_data):
 
     return pauses, pause_durations
 
-# ==== Transcript Analysis (Filler Words + Speed) ====
 def analyze_transcript(text, duration_secs, pauses):
     if not text:
         print(Fore.RED + "No transcript to analyze for filler words or speech speed.")
@@ -143,12 +123,9 @@ def analyze_transcript(text, duration_secs, pauses):
 
     words = text.split()
     total_words = len(words)
-
-    # Count individual filler word occurrences
     filler_count_map = {fw: words.count(fw) for fw in filler_words if fw in words}
     total_filler_count = sum(filler_count_map.values())
 
-    # Effective speaking time = total duration - total pause time (approx)
     effective_speaking_time = max(duration_secs - pauses * pause_threshold_sec, 0.1)
     speech_speed_wpm = (total_words / effective_speaking_time) * 60
 
@@ -161,7 +138,6 @@ def analyze_transcript(text, duration_secs, pauses):
 
     print(Fore.WHITE + f"\n🚀 Speech Speed: {speech_speed_wpm:.1f} words per minute")
 
-    # Feedback
     if total_filler_count > 3:
         simulate_led("red", "⚠️ Too many filler words")
     else:
@@ -174,7 +150,6 @@ def analyze_transcript(text, duration_secs, pauses):
     else:
         simulate_led("green", "✅ Speech speed is good")
 
-# ==== Main ====
 if __name__ == "__main__":
     filename, audio = record_audio()
     pauses, pause_durations = analyze_audio(audio)
