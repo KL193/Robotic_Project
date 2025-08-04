@@ -5,6 +5,7 @@ import scipy.io.wavfile as wav
 import time
 from colorama import Fore, init
 import speech_recognition as sr
+from gemini_optimize import optimize_presentation_script
 
 init(autoreset=True)
 
@@ -151,7 +152,17 @@ def analyze_transcript(text, duration_secs, pauses):
         simulate_led("green", "✅ Speech speed is good")
 
 if __name__ == "__main__":
+     # import here to avoid errors if unused
+
     filename, audio = record_audio()
     pauses, pause_durations = analyze_audio(audio)
     transcript = transcribe_audio(filename)
     analyze_transcript(transcript, duration, pauses)
+
+    if transcript:
+        print("\n" + Fore.GREEN + "🎯 Sending transcript to Gemini for optimization...\n")
+        optimized_script = optimize_presentation_script(transcript)
+        print("\n" + Fore.CYAN + "📝 Optimized Presentation Script:\n")
+        print(optimized_script)
+    else:
+        print(Fore.RED + "No transcript to optimize.")
