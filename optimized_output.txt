@@ -1,0 +1,3 @@
+Good morning, everyone. Today, we are excited to present our proposal for a new robotics project.
+
+For the hardware, we will be using a Raspberry Pi and an ESP32. This will be powered by a sophisticated software stack, utilizing Python, Microsoft Azure, and the Gemini API to handle all processing.

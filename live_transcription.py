@@ -162,11 +162,16 @@ if __name__ == "__main__":
     if transcript:
         print("\n" + Fore.GREEN + "🎯 Sending transcript to Gemini for optimization...\n")
         optimized_script = optimize_presentation_script(transcript)
-        print("\n" + Fore.CYAN + "📝 Optimized Presentation Script:\n")
-        print(optimized_script)
 
-        with open("optimized_script.txt", "w", encoding="utf-8") as f:
-            f.write(optimized_script)
+        if optimized_script and optimized_script.strip():
+            print("\n" + Fore.CYAN + "📝 Optimized Presentation Script:\n")
+            print(optimized_script)
 
+            # ✅ Save to file
+            with open("optimized_output.txt", "w", encoding="utf-8") as f:
+                f.write(optimized_script)
+        else:
+            print(Fore.RED + "[ERROR] Gemini returned empty optimization.")
     else:
         print(Fore.RED + "No transcript to optimize.")
+
