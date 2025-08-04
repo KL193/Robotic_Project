@@ -1,0 +1,1 @@
+Good morning, everyone. Today, we are excited to present our robotic project proposal. To demonstrate its capabilities, we will showcase some of its core functions, such as its ability to speak commands like 'goodbye' and to enter a sleep mode.
