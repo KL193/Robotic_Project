@@ -6,9 +6,11 @@ import time
 from colorama import Fore, init
 import speech_recognition as sr
 from gemini_optimize import optimize_presentation_script
+from speakz_greeting import speak_text  # ✅ Replaces speak_azure
 
 init(autoreset=True)
 
+# ===== CONFIG =====
 duration = 20
 sample_rate = 44100
 threshold_volume = 0.01
@@ -24,6 +26,7 @@ filler_words = {
     "anyway", "stuff like that", "things like that"
 }
 
+# ===== UTIL =====
 def simulate_led(color, message):
     color_map = {
         "green": Fore.GREEN,
@@ -41,6 +44,7 @@ def blink_led(color, times=3):
         print(" ", end="\r")
         time.sleep(0.2)
 
+# ===== AUDIO RECORD =====
 def record_audio(filename="recording.wav"):
     print(Fore.CYAN + "🎤 Recording started... Speak now!")
     simulate_led("blue", "Listening...")
@@ -51,6 +55,7 @@ def record_audio(filename="recording.wav"):
     print(Fore.CYAN + "✅ Recording saved.")
     return filename, audio_int16.flatten()
 
+# ===== TRANSCRIBE =====
 def transcribe_audio(filename):
     recognizer = sr.Recognizer()
     with sr.AudioFile(filename) as source:
@@ -63,9 +68,10 @@ def transcribe_audio(filename):
         print(Fore.RED + "❌ Speech was unintelligible.")
         return ""
     except sr.RequestError as e:
-        print(Fore.RED + f"❌ Could not request results from Google Speech Recognition service; {e}")
+        print(Fore.RED + f"❌ Google Speech error: {e}")
         return ""
 
+# ===== AUDIO ANALYSIS =====
 def analyze_audio(audio_data):
     if audio_data.dtype == np.int16 or audio_data.dtype == np.int32:
         audio_data = audio_data.astype(np.float32) / 32767
@@ -117,61 +123,120 @@ def analyze_audio(audio_data):
 
     return pauses, pause_durations
 
+# ===== TRANSCRIPT ANALYSIS =====
 def analyze_transcript(text, duration_secs, pauses):
     if not text:
-        print(Fore.RED + "No transcript to analyze for filler words or speech speed.")
-        return
+        print(Fore.RED + "No transcript to analyze.")
+        return None
 
     words = text.split()
     total_words = len(words)
     filler_count_map = {fw: words.count(fw) for fw in filler_words if fw in words}
     total_filler_count = sum(filler_count_map.values())
 
-    effective_speaking_time = max(duration_secs - pauses * pause_threshold_sec, 0.1)
-    speech_speed_wpm = (total_words / effective_speaking_time) * 60
+    effective_time = max(duration_secs - pauses * pause_threshold_sec, 0.1)
+    speech_speed_wpm = (total_words / effective_time) * 60
 
-    print(Fore.WHITE + f"\n🧠 Filler words detected: {total_filler_count} ({(total_filler_count / total_words) * 100:.2f}%)")
-
+    print(Fore.WHITE + f"\n🧠 Filler words: {total_filler_count} ({(total_filler_count / total_words) * 100:.2f}%)")
     if filler_count_map:
         print(Fore.YELLOW + "🔍 Filler Word Breakdown:")
         for word, count in filler_count_map.items():
-            print(f"   - '{word}': {count} time(s)")
+            print(f"   - '{word}': {count}x")
 
-    print(Fore.WHITE + f"\n🚀 Speech Speed: {speech_speed_wpm:.1f} words per minute")
+    print(Fore.WHITE + f"\n🚀 Speech Speed: {speech_speed_wpm:.1f} words/min")
 
     if total_filler_count > 3:
         simulate_led("red", "⚠️ Too many filler words")
     else:
-        simulate_led("green", "✅ Good filler word usage")
+        simulate_led("green", "✅ Filler usage okay")
 
     if speech_speed_wpm < 100:
-        simulate_led("yellow", "⚠️ Speech is too slow")
+        simulate_led("yellow", "⚠️ Too slow")
     elif speech_speed_wpm > 160:
-        simulate_led("yellow", "⚠️ Speech is too fast")
+        simulate_led("yellow", "⚠️ Too fast")
     else:
-        simulate_led("green", "✅ Speech speed is good")
+        simulate_led("green", "✅ Speed okay")
 
+    return {
+        "filler_count_map": filler_count_map,
+        "total_filler_count": total_filler_count,
+        "total_words": total_words,
+        "speech_speed_wpm": speech_speed_wpm
+    }
+
+# ===== FEEDBACK SUMMARY =====
+def generate_feedback_summary(volume, pauses, pause_durations, filler_count_map, total_filler_count, total_words, speech_speed_wpm):
+    summary = []
+
+    if volume > 0.05:
+        summary.append("Your voice was too loud at times.")
+    elif volume < 0.005:
+        summary.append("Your voice was too soft or almost silent.")
+    else:
+        summary.append("Your speaking volume was good.")
+
+    if pauses > 3:
+        summary.append(f"You had {pauses} long pauses, which could break flow.")
+    elif pauses > 0:
+        summary.append(f"You had {pauses} noticeable pause(s), but not excessive.")
+    else:
+        summary.append("You spoke fluidly without unnecessary pauses.")
+
+    if total_filler_count > 0:
+        filler_msg = f"You used {total_filler_count} filler words. "
+        filler_msg += "Try to reduce them for a more polished delivery." if total_filler_count > 3 else "That's a reasonable amount."
+        if filler_count_map:
+            filler_msg += " You said: " + ", ".join(f"'{k}' ({v})" for k, v in filler_count_map.items()) + "."
+        summary.append(filler_msg)
+    else:
+        summary.append("Great job! No filler words detected.")
+
+    if speech_speed_wpm < 100:
+        summary.append(f"Your speech was slow ({speech_speed_wpm:.1f} WPM).")
+    elif speech_speed_wpm > 160:
+        summary.append(f"Your speech was fast ({speech_speed_wpm:.1f} WPM).")
+    else:
+        summary.append(f"Your speech speed ({speech_speed_wpm:.1f} WPM) was ideal.")
+
+    return " ".join(summary)
+
+# ===== MAIN RUN =====
 if __name__ == "__main__":
-     # import here to avoid errors if unused
-
     filename, audio = record_audio()
     pauses, pause_durations = analyze_audio(audio)
     transcript = transcribe_audio(filename)
-    analyze_transcript(transcript, duration, pauses)
+    transcript_analysis = analyze_transcript(transcript, duration, pauses)
 
-    if transcript:
-        print("\n" + Fore.GREEN + "🎯 Sending transcript to Gemini for optimization...\n")
+    if transcript and transcript_analysis:
+        volume = np.abs(audio).mean()
+        feedback = generate_feedback_summary(
+            volume=volume,
+            pauses=pauses,
+            pause_durations=pause_durations,
+            filler_count_map=transcript_analysis["filler_count_map"],
+            total_filler_count=transcript_analysis["total_filler_count"],
+            total_words=transcript_analysis["total_words"],
+            speech_speed_wpm=transcript_analysis["speech_speed_wpm"]
+        )
+
+        print("\n" + Fore.MAGENTA + "🗣️ Feedback Summary Before Optimization:\n")
+        print(Fore.WHITE + feedback)
+
+        try:
+            print(Fore.CYAN + "\n🔊 Delivering feedback with Azure...\n")
+            speak_text(feedback)  # ✅ Using Azure TTS from speakz_greeting.py
+        except Exception as e:
+            print(Fore.RED + f"⚠️ TTS error: {e}")
+
+        print(Fore.GREEN + "\n✨ Optimizing script with Gemini...\n")
         optimized_script = optimize_presentation_script(transcript)
 
-        if optimized_script and optimized_script.strip():
-            print("\n" + Fore.CYAN + "📝 Optimized Presentation Script:\n")
+        if optimized_script.strip():
+            print(Fore.CYAN + "\n📝 Optimized Script:\n")
             print(optimized_script)
-
-            # ✅ Save to file
             with open("optimized_output.txt", "w", encoding="utf-8") as f:
                 f.write(optimized_script)
         else:
-            print(Fore.RED + "[ERROR] Gemini returned empty optimization.")
+            print(Fore.RED + "[ERROR] Gemini returned empty script.")
     else:
-        print(Fore.RED + "No transcript to optimize.")
-
+        print(Fore.RED + "❌ No transcript available for analysis.")

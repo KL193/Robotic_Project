@@ -4,8 +4,6 @@ import sys
 import time
 from speakz_greeting import speak_text, recognize_speech, speak_greeting, update_practice_log
 
-# ==== Entry Point for the Robot ====
-
 def main():
     while True:
         print("[WAITING] Say 'Hi' or 'Hey Speakz' to start.")
@@ -19,12 +17,12 @@ def main():
             if response and "yes" in response.lower():
                 count = update_practice_log()
                 speak_text(f"This is your {count} time practicing today. Keep it up!")
-                speak_text("Awesome! Let's begin. Start your presentation after the beep.")
+                speak_text("Let's begin. Start your presentation after the beep.")
 
-                # Step 1: Record and Analyze
+                # Step 1: Record, Analyze, and provide feedback (live_transcription.py handles speaking feedback)
                 subprocess.run([sys.executable, "live_transcription.py"], check=True)
 
-                # Step 2: Read optimized text from temp file
+                # Step 2: Read optimized text from file
                 temp_file = "optimized_output.txt"
                 if not os.path.exists(temp_file):
                     speak_text("Sorry, I couldn't find the optimized transcript.")
@@ -33,7 +31,7 @@ def main():
                 with open(temp_file, "r", encoding="utf-8") as f:
                     optimized_text = f.read()
 
-                # Step 3: Ask if user wants it presented
+                # Step 3: Ask if user wants the optimized speech presented
                 speak_text("Would you like me to present the optimized speech now? Please say yes or no.")
                 answer = recognize_speech()
 
@@ -47,10 +45,13 @@ def main():
                 speak_text("Alright! Just say 'Hey Speakz' again when you're ready.")
             else:
                 speak_text("I didn't catch that. Please say yes or no.")
+
         elif wake_input and ("goodbye" in wake_input.lower() or "exit" in wake_input.lower()):
             speak_text("Goodbye! Speakz is going to sleep.")
             break
+
         time.sleep(1)
+
 
 def wait_for_user_decision(temp_file):
     while True:

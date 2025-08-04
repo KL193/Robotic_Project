@@ -1,4 +1,5 @@
 import azure.cognitiveservices.speech as speechsdk
+#from gesture_sender import send_gesture
 from datetime import datetime
 import subprocess
 import os
@@ -36,11 +37,14 @@ def recognize_speech():
 def speak_greeting():
     hour = datetime.now().hour
     if 5 <= hour < 12:
+       # send_gesture("hands_up")
         speak_text( "Good morning! I'm Speakz, your presentation buddy. How can I help you today?")
     elif 12 <= hour < 17:
+        #send_gesture("hands_up")
         speak_text( "Good afternoon! I'm Speakz, your presentation buddy. How can I help you today?")
        
     else:
+        #send_gesture("hands_up")
         speak_text( "Good evening! I'm Speakz, your presentation buddy. How can I help you today?")
    # speak_text(f"{greeting_text} I'm Speakz, your presentation buddy. How can I help you today?")
 
@@ -87,12 +91,14 @@ def ask_practice():
             lower_response = response.lower()
             if "yes" in lower_response:
                 count = update_practice_log()
-                speak_text(f"This is your {count} time practicing today. Keep it up!")
-                speak_text("Awesome! Let's begin. Start your presentation after the beep.")
+              
+                speak_text(f"This is your {count}  time practicing today. Keep it up!")
+                speak_text("Let's begin. Start your presentation after the beep.")
                 record_and_analyze()
                 break
+
             elif "no" in lower_response:
-                speak_text("Alright! Just say 'Hey Speakz' again when you're ready.")
+                speak_text("Alright! Just say 'Hi' again when you're ready.")
                 break
             else:
                 speak_text("Sorry, I didn't get that. Please say yes or no.")
@@ -102,7 +108,8 @@ def ask_practice():
 # ==== Wake Word Loop ====
 def listen_for_wake_word():
     while True:
-        print("[WAITING] Say 'Hi' or 'Hey Spakz' to start.")
+        #send_gesture("hands_up")
+        print("[WAITING] Say 'Hi' or 'Hey Speakz' to start.")
         spoken_text = recognize_speech()
 
         if spoken_text:
@@ -117,7 +124,7 @@ def listen_for_wake_word():
                 break
 
             else:
-                speak_text("I'm listening. Just say 'Hi' or 'Hey Spakz' to start.")
+                speak_text("I'm listening. Just say 'Hi' or 'Hey Speakz' to start.")
        # else:
            # speak_text("I didn't hear anything. Try saying 'Hi Spakz'.")
         
