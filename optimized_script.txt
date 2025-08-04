@@ -1,0 +1,3 @@
+Good morning, everyone. Today, we are presenting our robotic project proposal, named Speax.
+
+Speax is designed to help you practice and improve your presentation skills. To build this robot, we will use a Raspberry Pi, an ESP32 microcontroller, and NeoPixel LEDs.
