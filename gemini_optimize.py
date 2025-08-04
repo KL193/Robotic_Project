@@ -10,7 +10,7 @@ init(autoreset=True)
 # Load environment variables from .env file
 load_dotenv()
 
-def optimize_presentation_script(transcript: str):
+def optimize_presentation_script(transcript: str) -> str:
     if not transcript.strip():
         print(Fore.RED + "No transcript to optimize.")
         return ""
@@ -23,25 +23,17 @@ def optimize_presentation_script(transcript: str):
     # Authenticate Gemini client
     client = genai.Client(api_key=api_key)
 
-    # Gemini Pro model
     model = "gemini-2.5-pro"
 
-    # Prepare prompt content
     contents = [
         types.Content(
             role="user",
-            parts=[
-                types.Part.from_text(text=transcript),
-            ],
+            parts=[types.Part.from_text(text=transcript)],
         ),
     ]
 
-    # System instruction for optimization
     generate_content_config = types.GenerateContentConfig(
         temperature=1.05,
-        thinking_config=types.ThinkingConfig(
-            thinking_budget=-1,
-        ),
         system_instruction=[
             types.Part.from_text(text="""You are a presentation script editor. The following is a raw transcript of a spoken presentation. Your task is to:
 - Remove filler words (like "um", "uh", "like", "you know", "so", "basically", etc.).
@@ -49,26 +41,28 @@ def optimize_presentation_script(transcript: str):
 - Reorganize sentences if needed for better clarity and flow.
 - Optimize the script to sound natural, engaging, and suitable for a professional presentation.
 - Retain the speaker's original intent and core message.
-- Use clear and concise language, with a confident and inspiring tone."""),
+- Use clear and concise language, with a confident and inspiring tone.
+Provide only one single optimized version of the script — do NOT provide multiple options or alternative versions."""),
         ],
     )
 
     print(Fore.GREEN + "🎯 Sending transcript to Gemini for optimization...\n")
 
     full_response = ""
+
     try:
         for chunk in client.models.generate_content_stream(
             model=model,
             contents=contents,
             config=generate_content_config,
         ):
-            print(chunk.text, end="")
-            full_response += chunk.text
+            if chunk.text:
+                print(chunk.text, end="")
+                full_response += chunk.text
     except Exception as e:
         print(Fore.RED + f"\n❌ Error while communicating with Gemini: {e}")
         return ""
 
-    print("\n\n✅ Optimization completed.")
     return full_response
 
 
@@ -85,5 +79,4 @@ if __name__ == "__main__":
     if optimized_text:
         with open("optimized_transcript.txt", "w", encoding="utf-8") as out_file:
             out_file.write(optimized_text)
-        print(Fore.CYAN + "💾 Optimized transcript saved to 'optimized_transcript.txt'")
-
+        print(Fore.CYAN + "\n💾 Optimized transcript saved to 'optimized_transcript.txt'")

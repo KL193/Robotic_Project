@@ -164,5 +164,9 @@ if __name__ == "__main__":
         optimized_script = optimize_presentation_script(transcript)
         print("\n" + Fore.CYAN + "📝 Optimized Presentation Script:\n")
         print(optimized_script)
+
+        with open("optimized_script.txt", "w", encoding="utf-8") as f:
+            f.write(optimized_script)
+
     else:
         print(Fore.RED + "No transcript to optimize.")
