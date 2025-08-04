@@ -1,0 +1,3 @@
+# Ignore environment and secret config files
+.env
+config_gemini.py
