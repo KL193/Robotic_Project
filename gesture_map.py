@@ -7,5 +7,9 @@ gesture_keywords = {
     "problem": "hands_down",
     "solution": "hands_away",
     "conclusion": "relax",
-    "relax": "relax"
+    "relax": "relax",
+    "Good morning ": "hands_away ",
+    "Good evening" : "hands_away",
+    "Good afternoon":"hands_away",
+    "I'm Speakz" :"relax",
 }

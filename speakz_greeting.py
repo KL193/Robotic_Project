@@ -1,10 +1,11 @@
 import azure.cognitiveservices.speech as speechsdk
-#from gesture_sender import send_gesture
+from gesture_sender import send_gesture
 from datetime import datetime
 import subprocess
 import os
 import sys
 import time
+import threading
 
 # ==== Azure Speech Config ====
 speech_key = "1a0oyWt4KJ7CiF6OjOqZXq4cYzbkDCx8TWAqnVQJoZ4LjiKZyA0GJQQJ99BGACYeBjFXJ3w3AAAYACOGMrMv"
@@ -21,6 +22,20 @@ def speak_text(text):
     if result.reason != speechsdk.ResultReason.SynthesizingAudioCompleted:
         print("[ERROR] Speech synthesis failed.")
 
+# ==== Speak with Gesture at Same Time ====
+def speak_with_gesture(text, gesture=None):
+    """Speak text and do gesture at the SAME time"""
+    if gesture:
+        # Start gesture in background thread
+        gesture_thread = threading.Thread(target=send_gesture, args=(gesture,))
+        gesture_thread.start()
+    
+    # Speak at same time
+    speak_text(text)
+    
+    if gesture:
+        gesture_thread.join()  # Wait for gesture to finish
+
 # ==== Recognize One Speech ====
 def recognize_speech():
     audio_config = speechsdk.audio.AudioConfig(use_default_microphone=True)
@@ -36,17 +51,21 @@ def recognize_speech():
 # ==== Time-based Greeting ====
 def speak_greeting():
     hour = datetime.now().hour
+    
     if 5 <= hour < 12:
-       # send_gesture("hands_up")
-        speak_text( "Good morning! I'm Speakz, your presentation buddy. How can I help you today?")
+        speak_with_gesture("Good morning!", "handsup")
+        speak_with_gesture("I'm Speakz, your presentation buddy.", "relax")
+        speak_with_gesture("How can I help you today?", "handtogether")
+        
     elif 12 <= hour < 17:
-        #send_gesture("hands_up")
-        speak_text( "Good afternoon! I'm Speakz, your presentation buddy. How can I help you today?")
-       
+        speak_with_gesture("Good afternoon!", "handsup")
+        speak_with_gesture("I'm Speakz, your presentation buddy.", "relax")
+        speak_with_gesture("How can I help you today?", "handtogether")
+        
     else:
-        #send_gesture("hands_up")
-        speak_text( "Good evening! I'm Speakz, your presentation buddy. How can I help you today?")
-   # speak_text(f"{greeting_text} I'm Speakz, your presentation buddy. How can I help you today?")
+        speak_with_gesture("Good evening! I'm Speakz, your presentation buddy. How can I help you today?", "handsup")
+    
+    send_gesture("relax")  # End in relaxed position
 
 # ==== Track Daily Practice Progress ====
 def update_practice_log():
@@ -84,31 +103,33 @@ def record_and_analyze():
 def ask_practice():
     """Ask user until they say yes or no."""
     while True:
-        speak_text("Would you like to practice your presentation now? Please say yes or no.")
+        speak_with_gesture("Would you like to practice your presentation now? Please say yes or no.", "handtogether")
         response = recognize_speech()
 
         if response:
             lower_response = response.lower()
             if "yes" in lower_response:
                 count = update_practice_log()
-              
-                speak_text(f"This is your {count}  time practicing today. Keep it up!")
-                speak_text("Let's begin. Start your presentation after the beep.")
+                
+                speak_with_gesture(f"This is your {count} time practicing today. Keep it up!", "handsup")
+                speak_with_gesture("Let's begin. Start your presentation after the beep.", "point")
+                send_gesture("relax")
                 record_and_analyze()
                 break
 
             elif "no" in lower_response:
-                speak_text("Alright! Just say 'Hi' again when you're ready.")
+                speak_with_gesture("Alright! Just say 'Hi' again when you're ready.", "handsdown")
+                send_gesture("relax")
                 break
             else:
-                speak_text("Sorry, I didn't get that. Please say yes or no.")
-       # else:
-         #   speak_text("I didn't hear anything. Please try again.")
+                speak_with_gesture("Sorry, I didn't get that. Please say yes or no.", "handtogether")
 
 # ==== Wake Word Loop ====
 def listen_for_wake_word():
+    # Start with relaxed position
+    send_gesture("relax")
+    
     while True:
-        #send_gesture("hands_up")
         print("[WAITING] Say 'Hi' or 'Hey Speakz' to start.")
         spoken_text = recognize_speech()
 
@@ -120,16 +141,15 @@ def listen_for_wake_word():
                 ask_practice()
 
             elif "goodbye" in lower_text or "exit" in lower_text:
-                speak_text("Goodbye! Have a great day.")
+                speak_with_gesture("Goodbye! Have a great day.", "handsdown")
+                send_gesture("relax")
                 break
 
             else:
-                speak_text("I'm listening. Just say 'Hi' or 'Hey Speakz' to start.")
-       # else:
-           # speak_text("I didn't hear anything. Try saying 'Hi Spakz'.")
+                speak_with_gesture("I'm listening. Just say 'Hi' or 'Hey Speakz' to start.", "handtogether")
+                send_gesture("relax")
         
         time.sleep(1)
-
 
 # ==== Entry Point ====
 if __name__ == "__main__":
