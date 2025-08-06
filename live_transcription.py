@@ -6,7 +6,8 @@ import time
 from colorama import Fore, init
 import speech_recognition as sr
 from gemini_optimize import optimize_presentation_script
-from speakz_greeting import speak_text  # ✅ Replaces speak_azure
+from speakz_greeting import speak_text
+from led_controller import led_good, led_too_loud, led_too_soft, led_long_pause, led_off, test_connection, start_processing_pattern
 
 init(autoreset=True)
 
@@ -15,6 +16,11 @@ duration = 20
 sample_rate = 44100
 threshold_volume = 0.01
 pause_threshold_sec = 0.3
+
+# Real-time analysis thresholds
+threshold_volume_loud = 0.05  # Too loud threshold
+threshold_volume_soft = 0.005  # Too soft threshold
+realtime_pause_threshold = 1.0  # Long pause threshold for LED (1 second)
 
 filler_words = {
     "um", "uh", "er", "ah", "hmm",
@@ -25,6 +31,73 @@ filler_words = {
     "you see", "you get me", "you feel me",
     "anyway", "stuff like that", "things like that"
 }
+
+# Global variables for real-time analysis
+led_connected = False
+silence_start_time = None
+audio_buffer = []
+
+def check_led_connection():
+    """Test ESP32 connection at startup"""
+    global led_connected
+    led_connected = test_connection()
+    if not led_connected:
+        print(Fore.YELLOW + "[WARNING] ESP32 not connected. LEDs will not work.")
+    return led_connected
+
+def update_led_realtime(chunk):
+    """Analyze audio chunk and update LEDs in real-time"""
+    global silence_start_time, led_connected
+    
+    if not led_connected:
+        return
+    
+    # Convert to float32 if needed
+    if chunk.dtype == np.int16 or chunk.dtype == np.int32:
+        chunk = chunk.astype(np.float32) / 32767
+    
+    # Calculate volume
+    volume = np.abs(chunk).mean()
+    
+    # Check if it's silence (potential pause)
+    is_silence = volume < threshold_volume_soft
+    
+    if is_silence:
+        if silence_start_time is None:
+            silence_start_time = time.time()
+        else:
+            silence_duration = time.time() - silence_start_time
+            if silence_duration > realtime_pause_threshold:
+                led_long_pause()
+                return
+    else:
+        silence_start_time = None  # Reset silence timer
+        
+        # Check volume levels
+        if volume > threshold_volume_loud:
+            led_too_loud()
+        elif volume < threshold_volume_soft:
+            led_too_soft()
+        else:
+            led_good()
+
+def audio_callback(indata, frames, time, status):
+    """Real-time audio callback for LED feedback"""
+    global audio_buffer
+    
+    if status:
+        print(f'Audio callback error: {status}')
+    
+    # Add to buffer for final processing
+    audio_buffer.append(indata.copy())
+    
+    # Real-time LED analysis
+    chunk = indata.flatten()
+    update_led_realtime(chunk)
+    
+    # Print real-time feedback
+    volume = np.abs(chunk).mean()
+    print(f"\r{Fore.CYAN}🎤 Recording... Vol: {volume:.4f}", end="", flush=True)
 
 # ===== UTIL =====
 def simulate_led(color, message):
@@ -44,16 +117,50 @@ def blink_led(color, times=3):
         print(" ", end="\r")
         time.sleep(0.2)
 
-# ===== AUDIO RECORD =====
+# ===== AUDIO RECORD WITH REAL-TIME LEDs =====
 def record_audio(filename="recording.wav"):
-    print(Fore.CYAN + "🎤 Recording started... Speak now!")
+    global audio_buffer, led_connected
+    
+    # Reset buffer
+    audio_buffer = []
+    
+    # Check LED connection
+    check_led_connection()
+    
+    print(Fore.CYAN + "🎤 Recording started with real-time LED feedback...")
+    if led_connected:
+        print(Fore.WHITE + "Green = Good | Red = Too loud/Long pause | Orange = Too soft")
+    
     simulate_led("blue", "Listening...")
-    audio = sd.rec(int(duration * sample_rate), samplerate=sample_rate, channels=1, dtype='float32')
-    sd.wait()
-    audio_int16 = np.int16(audio * 32767)
-    wav.write(filename, sample_rate, audio_int16)
-    print(Fore.CYAN + "✅ Recording saved.")
-    return filename, audio_int16.flatten()
+    
+    # Record with real-time callback
+    try:
+        with sd.InputStream(samplerate=sample_rate, channels=1, 
+                          callback=audio_callback, dtype='float32'):
+            sd.sleep(int(duration * 1000))  # Convert to milliseconds
+    except Exception as e:
+        print(f"\n{Fore.RED}Recording error: {e}")
+        return None, None
+    
+    # Turn off LEDs when done
+    if led_connected:
+        led_off()
+    
+    print(f"\n{Fore.CYAN}✅ Recording complete!")
+    
+    # Combine all audio chunks
+    if audio_buffer:
+        audio = np.concatenate(audio_buffer, axis=0).flatten()
+        
+        # Save to file
+        audio_int16 = np.int16(audio * 32767)
+        wav.write(filename, sample_rate, audio_int16)
+        print(Fore.CYAN + "💾 Recording saved.")
+        
+        return filename, audio_int16.flatten()
+    else:
+        print(Fore.RED + "❌ No audio recorded!")
+        return None, None
 
 # ===== TRANSCRIBE =====
 def transcribe_audio(filename):
@@ -203,40 +310,54 @@ def generate_feedback_summary(volume, pauses, pause_durations, filler_count_map,
 # ===== MAIN RUN =====
 if __name__ == "__main__":
     filename, audio = record_audio()
-    pauses, pause_durations = analyze_audio(audio)
-    transcript = transcribe_audio(filename)
-    transcript_analysis = analyze_transcript(transcript, duration, pauses)
+    
+    if filename and audio is not None:
+        pauses, pause_durations = analyze_audio(audio)
+        transcript = transcribe_audio(filename)
+        transcript_analysis = analyze_transcript(transcript, duration, pauses)
 
-    if transcript and transcript_analysis:
-        volume = np.abs(audio).mean()
-        feedback = generate_feedback_summary(
-            volume=volume,
-            pauses=pauses,
-            pause_durations=pause_durations,
-            filler_count_map=transcript_analysis["filler_count_map"],
-            total_filler_count=transcript_analysis["total_filler_count"],
-            total_words=transcript_analysis["total_words"],
-            speech_speed_wpm=transcript_analysis["speech_speed_wpm"]
-        )
+        if transcript and transcript_analysis:
+            volume = np.abs(audio).mean()
+            feedback = generate_feedback_summary(
+                volume=volume,
+                pauses=pauses,
+                pause_durations=pause_durations,
+                filler_count_map=transcript_analysis["filler_count_map"],
+                total_filler_count=transcript_analysis["total_filler_count"],
+                total_words=transcript_analysis["total_words"],
+                speech_speed_wpm=transcript_analysis["speech_speed_wpm"]
+            )
 
-        print("\n" + Fore.MAGENTA + "🗣️ Feedback Summary Before Optimization:\n")
-        print(Fore.WHITE + feedback)
+            print("\n" + Fore.MAGENTA + "🗣️ Feedback Summary Before Optimization:\n")
+            print(Fore.WHITE + feedback)
 
-        try:
-            print(Fore.CYAN + "\n🔊 Delivering feedback with Azure...\n")
-            speak_text(feedback)  # ✅ Using Azure TTS from speakz_greeting.py
-        except Exception as e:
-            print(Fore.RED + f"⚠️ TTS error: {e}")
+            try:
+                print(Fore.CYAN + "\n🔊 Delivering feedback with Azure...\n")
+                # Yellow processing pattern while giving feedback
+                if led_connected:
+                    start_processing_pattern()
+                speak_text(feedback)
+            except Exception as e:
+                print(Fore.RED + f"⚠️ TTS error: {e}")
 
-        print(Fore.GREEN + "\n✨ Optimizing script with Gemini...\n")
-        optimized_script = optimize_presentation_script(transcript)
+            print(Fore.GREEN + "\n✨ Optimizing script with Gemini...\n")
+            # Keep yellow processing pattern during Gemini optimization
+            if led_connected:
+                start_processing_pattern()
+            optimized_script = optimize_presentation_script(transcript)
 
-        if optimized_script.strip():
-            print(Fore.CYAN + "\n📝 Optimized Script:\n")
-            print(optimized_script)
-            with open("optimized_output.txt", "w", encoding="utf-8") as f:
-                f.write(optimized_script)
+            if optimized_script.strip():
+                print(Fore.CYAN + "\n📝 Optimized Script:\n")
+                print(optimized_script)
+                with open("optimized_output.txt", "w", encoding="utf-8") as f:
+                    f.write(optimized_script)
+                
+                # Turn off processing pattern when done
+                if led_connected:
+                    led_off()
+            else:
+                print(Fore.RED + "[ERROR] Gemini returned empty script.")
         else:
-            print(Fore.RED + "[ERROR] Gemini returned empty script.")
+            print(Fore.RED + "❌ No transcript available for analysis.")
     else:
-        print(Fore.RED + "❌ No transcript available for analysis.")
+        print(Fore.RED + "❌ Recording failed or no audio data.")
