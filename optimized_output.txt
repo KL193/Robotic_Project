@@ -1,1 +1,1 @@
-Good morning, everyone. Today, we are excited to present our robotics project proposal, "Speed Buddy." For the core hardware components, we will be utilizing a Raspberry Pi and an ESP32.
+Alright, let's take a look at the new screen.
