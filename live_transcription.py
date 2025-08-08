@@ -12,7 +12,7 @@ from led_controller import led_good, led_too_loud, led_too_soft, led_long_pause,
 init(autoreset=True)
 
 # ===== CONFIG =====
-duration = 20
+duration = 40
 sample_rate = 44100
 threshold_volume = 0.01
 pause_threshold_sec = 0.3
@@ -32,10 +32,13 @@ filler_words = {
     "anyway", "stuff like that", "things like that"
 }
 
-# Global variables for real-time analysis
+# Global variables for real-time analysis - FIXED: Added missing variables
 led_connected = False
 silence_start_time = None
 audio_buffer = []
+last_led_time = 0  # FIXED: Added this missing variable
+led_cooldown_sec = 0.1  # FIXED: Added LED cooldown (100ms)
+last_led_state = None  # Track last LED state to avoid redundant calls
 
 def check_led_connection():
     """Test ESP32 connection at startup"""
@@ -46,40 +49,66 @@ def check_led_connection():
     return led_connected
 
 def update_led_realtime(chunk):
-    """Analyze audio chunk and update LEDs in real-time"""
-    global silence_start_time, led_connected
-    
+    global silence_start_time, led_connected, last_led_time, last_led_state
+
     if not led_connected:
         return
-    
+
     # Convert to float32 if needed
     if chunk.dtype == np.int16 or chunk.dtype == np.int32:
         chunk = chunk.astype(np.float32) / 32767
-    
+
     # Calculate volume
     volume = np.abs(chunk).mean()
-    
+
     # Check if it's silence (potential pause)
     is_silence = volume < threshold_volume_soft
-    
+
+    # LED cooldown check
+    now = time.time()
+    if now - last_led_time < led_cooldown_sec:
+        return  # Skip LED update if within cooldown
+
+    current_led_state = None
+
     if is_silence:
         if silence_start_time is None:
-            silence_start_time = time.time()
+            silence_start_time = now
         else:
-            silence_duration = time.time() - silence_start_time
+            silence_duration = now - silence_start_time
             if silence_duration > realtime_pause_threshold:
-                led_long_pause()
-                return
+                current_led_state = "long_pause"
     else:
         silence_start_time = None  # Reset silence timer
-        
+
         # Check volume levels
         if volume > threshold_volume_loud:
-            led_too_loud()
+            current_led_state = "too_loud"
         elif volume < threshold_volume_soft:
-            led_too_soft()
+            current_led_state = "too_soft"
         else:
-            led_good()
+            current_led_state = "good"
+
+    # Only send LED command if state changed (avoid redundant calls)
+    if current_led_state and current_led_state != last_led_state:
+        try:
+            if current_led_state == "good":
+                led_good()
+            elif current_led_state == "too_loud":
+                led_too_loud()
+            elif current_led_state == "too_soft":
+                led_too_soft()
+            elif current_led_state == "long_pause":
+                led_long_pause()
+            
+            last_led_state = current_led_state
+            last_led_time = now
+            
+            # Debug output (optional - comment out if too verbose)
+            print(f"\r[LED] Volume: {volume:.4f} -> {current_led_state}         ", end="", flush=True)
+            
+        except Exception as e:
+            print(f"\n[LED ERROR] {e}")
 
 def audio_callback(indata, frames, time, status):
     """Real-time audio callback for LED feedback"""
@@ -95,9 +124,9 @@ def audio_callback(indata, frames, time, status):
     chunk = indata.flatten()
     update_led_realtime(chunk)
     
-    # Print real-time feedback
+    # Print real-time feedback (less verbose version)
     volume = np.abs(chunk).mean()
-    print(f"\r{Fore.CYAN}🎤 Recording... Vol: {volume:.4f}", end="", flush=True)
+    print(f"\r{Fore.CYAN}🎤 Recording... Vol: {volume:.4f}   ", end="", flush=True)
 
 # ===== UTIL =====
 def simulate_led(color, message):
@@ -119,10 +148,13 @@ def blink_led(color, times=3):
 
 # ===== AUDIO RECORD WITH REAL-TIME LEDs =====
 def record_audio(filename="recording.wav"):
-    global audio_buffer, led_connected
+    global audio_buffer, led_connected, silence_start_time, last_led_time, last_led_state
     
-    # Reset buffer
+    # Reset all global variables
     audio_buffer = []
+    silence_start_time = None
+    last_led_time = 0
+    last_led_state = None
     
     # Check LED connection
     check_led_connection()
@@ -130,6 +162,8 @@ def record_audio(filename="recording.wav"):
     print(Fore.CYAN + "🎤 Recording started with real-time LED feedback...")
     if led_connected:
         print(Fore.WHITE + "Green = Good | Red = Too loud/Long pause | Orange = Too soft")
+    else:
+        print(Fore.YELLOW + "LED feedback disabled (ESP32 not connected)")
     
     simulate_led("blue", "Listening...")
     
@@ -309,6 +343,9 @@ def generate_feedback_summary(volume, pauses, pause_durations, filler_count_map,
 
 # ===== MAIN RUN =====
 if __name__ == "__main__":
+    print(Fore.CYAN + "🤖 Starting Speech Analysis with LED Feedback System")
+    print(Fore.WHITE + "=" * 60)
+    
     filename, audio = record_audio()
     
     if filename and audio is not None:
@@ -355,9 +392,14 @@ if __name__ == "__main__":
                 # Turn off processing pattern when done
                 if led_connected:
                     led_off()
+                    
+                print(Fore.GREEN + "\n✅ Analysis complete! Check 'optimized_output.txt' for results.")
             else:
                 print(Fore.RED + "[ERROR] Gemini returned empty script.")
         else:
             print(Fore.RED + "❌ No transcript available for analysis.")
     else:
         print(Fore.RED + "❌ Recording failed or no audio data.")
+    
+    print(Fore.WHITE + "\n" + "=" * 60)
+    print(Fore.CYAN + "🎯 Session Complete!")

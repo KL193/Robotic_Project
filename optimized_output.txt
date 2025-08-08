@@ -1,1 +1,3 @@
-Alright, let's take a look at the new screen.
+For our hardware, we're using a Raspberry Pi. The software is powered by a combination of Azure, Python, and the Gemini API.
+
+Our system is an intelligent tool designed to help you practice and improve your presentations. It’s important to clarify that this is not just a robot; it’s a sophisticated platform with a wide range of functions.
