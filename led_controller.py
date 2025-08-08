@@ -6,7 +6,7 @@ from colorama import Fore, init
 init(autoreset=True)
 
 # ESP32 Configuration
-ESP32_IP = "10.32.11.70"  # Change this to your ESP32's IP address
+ESP32_IP = "192.168.213.21"  # Change this to your ESP32's IP address
 ESP32_PORT = 80
 BASE_URL = f"http://{ESP32_IP}:{ESP32_PORT}"
 
@@ -14,7 +14,7 @@ BASE_URL = f"http://{ESP32_IP}:{ESP32_PORT}"
 current_pattern_thread = None
 stop_pattern = False
 
-def send_led_command(pattern, brightness=100, speed=500):
+def send_led_command(pattern, brightness=150, speed=500):
     """
     Send LED pattern command to ESP32
     
@@ -63,13 +63,13 @@ def start_pattern_thread(pattern_func, *args):
 # ===== BEAUTIFUL LED PATTERNS =====
 
 def startup_pattern():
-    """Beautiful startup pattern for 40 seconds"""
-    print(Fore.CYAN + "[LED] Starting beautiful startup pattern for 40 seconds...")
-    send_led_command("startup", brightness=120, speed=300)
+    """Beautiful startup pattern for 20 seconds"""
+    print(Fore.CYAN + "[LED] Starting beautiful startup pattern for 20 seconds...")
+    send_led_command("startup", brightness=100, speed=100)
     
     # Let ESP32 handle the 40-second pattern
     start_time = time.time()
-    while time.time() - start_time < 40 and not stop_pattern:
+    while time.time() - start_time < 20 and not stop_pattern:
         time.sleep(0.5)
     
     if not stop_pattern:
