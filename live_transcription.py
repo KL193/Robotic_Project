@@ -3,6 +3,8 @@ import sounddevice as sd
 import numpy as np
 import scipy.io.wavfile as wav
 import time
+import os
+import datetime
 from colorama import Fore, init
 import speech_recognition as sr
 from gemini_optimize import optimize_presentation_script
@@ -47,6 +49,49 @@ def check_led_connection():
     if not led_connected:
         print(Fore.YELLOW + "[WARNING] ESP32 not connected. LEDs will not work.")
     return led_connected
+
+def save_user_transcript_copy(optimized_text, original_transcript):
+    """Save a timestamped copy of both original and optimized transcripts for user access"""
+    try:
+        # Create a user-friendly folder path
+        user_transcripts_folder = r"D:\uoj\4 th year\Robotics\Speakz-Greetings\Robotic_Project\User_Transcripts"
+        
+        # Make sure the folder exists
+        os.makedirs(user_transcripts_folder, exist_ok=True)
+        
+        # Create timestamped filename
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        user_filename = f"presentation_session_{timestamp}.txt"
+        user_file_path = os.path.join(user_transcripts_folder, user_filename)
+        
+        # Create comprehensive session report
+        session_content = f"""SPEAKZ PRESENTATION SESSION REPORT
+{'='*50}
+Date & Time: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+Session ID: {timestamp}
+
+ORIGINAL TRANSCRIPT:
+{'-'*20}
+{original_transcript}
+
+OPTIMIZED VERSION:
+{'-'*17}
+{optimized_text}
+
+{'='*50}
+End of Session Report
+"""
+        
+        # Save the session report
+        with open(user_file_path, "w", encoding="utf-8") as f:
+            f.write(session_content)
+        
+        print(Fore.CYAN + f"💾 User session saved to: User_Transcripts/{user_filename}")
+        return user_file_path
+        
+    except Exception as e:
+        print(Fore.YELLOW + f"⚠️ Warning: Could not save user transcript copy: {e}")
+        return None
 
 def update_led_realtime(chunk):
     global silence_start_time, led_connected, last_led_time, last_led_state
@@ -386,14 +431,23 @@ if __name__ == "__main__":
             if optimized_script.strip():
                 print(Fore.CYAN + "\n📝 Optimized Script:\n")
                 print(optimized_script)
+                
+                # Save the main system file (required by main_controller.py)
                 with open("optimized_output.txt", "w", encoding="utf-8") as f:
                     f.write(optimized_script)
+                
+                # Save user copy with timestamp for future reference
+                user_file = save_user_transcript_copy(optimized_script, transcript)
                 
                 # Turn off processing pattern when done
                 if led_connected:
                     led_off()
                     
                 print(Fore.GREEN + "\n✅ Analysis complete! Check 'optimized_output.txt' for results.")
+                if user_file:
+                    print(Fore.CYAN + "💾 User session report saved for future reference!")
+                else:
+                    print(Fore.YELLOW + "⚠️ Main system file saved, but user backup failed.")
             else:
                 print(Fore.RED + "[ERROR] Gemini returned empty script.")
         else:

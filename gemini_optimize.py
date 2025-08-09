@@ -1,4 +1,5 @@
 import os
+import datetime
 from google import genai
 from google.genai import types
 from colorama import Fore, init
@@ -76,7 +77,49 @@ if __name__ == "__main__":
 
     optimized_text = optimize_presentation_script(transcript_text)
 
+    # Debug: Check if optimization worked
+    print(f"\nDEBUG: Optimized text length: {len(optimized_text)}")
+
     if optimized_text:
-        with open("optimized_transcript.txt", "w", encoding="utf-8") as out_file:
-            out_file.write(optimized_text)
-        print(Fore.CYAN + "\n💾 Optimized transcript saved to 'optimized_transcript.txt'")
+        try:
+            # Save to your desired folder with timestamp (as backup)
+            save_path = r"C:\Users\HI\Desktop\Robotic_Project-main"
+            
+            # Debug: Check folder path
+            print(f"DEBUG: Trying to save to: {save_path}")
+            print(f"DEBUG: Folder exists: {os.path.exists(save_path)}")
+            
+            # Make sure the folder exists
+            os.makedirs(save_path, exist_ok=True)
+
+            # Create timestamped filename for backup
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            timestamped_filename = f"optimized_transcript_{timestamp}.txt"
+            timestamped_path = os.path.join(save_path, timestamped_filename)
+
+            # Also create the file that main_controller.py expects
+            main_script_file = "optimized_output.txt"
+
+            # Save both files
+            with open(timestamped_path, "w", encoding="utf-8") as f1, \
+                 open(main_script_file, "w", encoding="utf-8") as f2:
+                f1.write(optimized_text)
+                f2.write(optimized_text)
+
+            print(Fore.CYAN + f"\n💾 Backup saved to: '{timestamped_path}'")
+            print(Fore.CYAN + f"💾 Main script file saved as: '{main_script_file}'")
+            print(Fore.GREEN + "✅ Both files saved successfully!")
+
+        except Exception as e:
+            print(Fore.RED + f"\n❌ ERROR saving files: {e}")
+            print(Fore.YELLOW + "Trying to save only the main script file...")
+            
+            # Fallback: at least save the file main script needs
+            try:
+                with open("optimized_output.txt", "w", encoding="utf-8") as f:
+                    f.write(optimized_text)
+                print(Fore.CYAN + "💾 Main script file saved as: 'optimized_output.txt'")
+            except Exception as e2:
+                print(Fore.RED + f"❌ Failed to save any files: {e2}")
+    else:
+        print(Fore.RED + "❌ No optimized text to save. Check your API key and transcript file.")
