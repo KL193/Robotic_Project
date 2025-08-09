@@ -1,1 +1,9 @@
-Good morning, everyone. Today, I'm excited to present our robotics project, SpeakState. It’s a tool designed to help you practice and perfect your presentation skills.
+Good morning, everyone.
+
+Today, I am excited to present our new robotic project, which we call "Speaker."
+
+Speaker is a personal robot designed to help you improve your presentations. Imagine you're practicing a speech, and a feedback light in front of you is red. Speaker provides real-time guidance to help you refine your delivery, with the goal of turning that light to a confident green.
+
+It's all about helping you shine.
+
+Thank you.
