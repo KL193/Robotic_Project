@@ -1,194 +1,150 @@
 import requests
 import time
 import threading
+from queue import Queue
 from colorama import Fore, init
 
 init(autoreset=True)
 
-# ESP32 Configuration
-ESP32_IP = "192.168.213.21"  # Change this to your ESP32's IP address
-ESP32_PORT = 80
-BASE_URL = f"http://{ESP32_IP}:{ESP32_PORT}"
+ESP32_IP = "192.168.213.151"  # Change this to your ESP32 IP
+BASE_URL = f"http://{ESP32_IP}"
 
-# Global pattern control
-current_pattern_thread = None
-stop_pattern = False
+led_queue = Queue()
+led_thread = None
+stop_led_thread = False
 
-def send_led_command(pattern, brightness=150, speed=500):
-    """
-    Send LED pattern command to ESP32
-    
-    Args:
-        pattern: 'startup', 'blue_loading', 'purple_speaking', 'yellow_processing', 'red', 'green', 'orange', 'off'
-        brightness: 0-255 (default 100)
-        speed: pattern speed in ms (default 500)
-    """
+def _led_worker():
+    """Background thread to process LED pattern commands from queue"""
+    global stop_led_thread
+    while not stop_led_thread:
+        try:
+            pattern = led_queue.get(timeout=0.1)
+            if pattern == "STOP":
+                break
+            _send_led_command_direct(pattern)
+            led_queue.task_done()
+        except:
+            continue
+
+def _send_led_command_direct(pattern: str):
+    """Send LED pattern command as simple GET request"""
     try:
-        url = f"{BASE_URL}/led"
-        data = {
-            "pattern": pattern,
-            "brightness": brightness,
-            "speed": speed
-        }
-        
-        response = requests.post(url, json=data, timeout=2)
-        
+        url = f"{BASE_URL}/style?name={pattern}"
+        response = requests.get(url, timeout=2)
         if response.status_code == 200:
-            print(f"[LED] {pattern.upper()} - Brightness: {brightness}")
+            print(f"[LED] Sent pattern: {pattern}")
             return True
         else:
-            print(Fore.RED + f"[LED ERROR] Status: {response.status_code}")
+            print(Fore.RED + f"[LED ERROR] Status code: {response.status_code}")
             return False
-            
     except requests.exceptions.RequestException as e:
         print(Fore.RED + f"[LED ERROR] Cannot connect to ESP32: {e}")
         return False
 
-def stop_current_pattern():
-    """Stop any running LED pattern"""
-    global stop_pattern, current_pattern_thread
-    stop_pattern = True
-    if current_pattern_thread and current_pattern_thread.is_alive():
-        current_pattern_thread.join(timeout=1)
-    stop_pattern = False
+def start_led_system():
+    """Start the background LED command thread"""
+    global led_thread, stop_led_thread
+    if led_thread is None or not led_thread.is_alive():
+        stop_led_thread = False
+        led_thread = threading.Thread(target=_led_worker, daemon=True)
+        led_thread.start()
+        print("[LED] LED system started")
 
-def start_pattern_thread(pattern_func, *args):
-    """Start a new pattern in a separate thread"""
-    global current_pattern_thread
-    stop_current_pattern()
-    current_pattern_thread = threading.Thread(target=pattern_func, args=args)
-    current_pattern_thread.daemon = True
-    current_pattern_thread.start()
+def stop_led_system():
+    """Stop LED command thread cleanly"""
+    global stop_led_thread
+    stop_led_thread = True
+    led_queue.put("STOP")
+    if led_thread and led_thread.is_alive():
+        led_thread.join(timeout=1)
+    print("[LED] LED system stopped")
 
-# ===== BEAUTIFUL LED PATTERNS =====
+def send_led_pattern(pattern: str):
+    """Send LED pattern asynchronously (non-blocking)"""
+    start_led_system()
+    try:
+        led_queue.put_nowait(pattern)
+        print(f"[LED] Queued pattern: {pattern}")
+    except:
+        print("[LED] Queue full, skipping pattern")
 
-def startup_pattern():
-    """Beautiful startup pattern for 20 seconds"""
-    print(Fore.CYAN + "[LED] Starting beautiful startup pattern for 20 seconds...")
-    send_led_command("startup", brightness=100, speed=100)
-    
-    # Let ESP32 handle the 40-second pattern
-    start_time = time.time()
-    while time.time() - start_time < 20 and not stop_pattern:
-        time.sleep(0.5)
-    
-    if not stop_pattern:
-        print(Fore.GREEN + "[LED] Startup pattern complete!")
-
-def blue_loading_pattern():
-    """Blue loading pattern for listening"""
-    print(Fore.BLUE + "[LED] Blue loading pattern - Listening...")
-    send_led_command("blue_loading", brightness=100, speed=400)
-
-def purple_speaking_pattern():
-    """Purple pattern when robot is speaking"""
-    print(Fore.MAGENTA + "[LED] Purple speaking pattern...")
-    send_led_command("purple_speaking", brightness=110, speed=600)
-
-def yellow_processing_pattern():
-    """Pale yellow pattern for analysis and optimization"""
-    print(Fore.YELLOW + "[LED] Yellow processing pattern...")
-    send_led_command("yellow_processing", brightness=80, speed=800)
-
-# ===== SIMPLE LED STATES (for real-time feedback) =====
-
-def led_good():
-    """Light up GREEN - Everything is good"""
-    stop_current_pattern()
-    send_led_command("green", brightness=80)
-
-def led_too_loud():
-    """Light up RED - Too loud"""
-    stop_current_pattern()
-    send_led_command("red", brightness=120)
-
-def led_too_soft():
-    """Light up ORANGE - Too soft"""
-    stop_current_pattern()
-    send_led_command("orange", brightness=100)
-
-def led_long_pause():
-    """Light up RED - Long pause detected"""
-    stop_current_pattern()
-    send_led_command("red", brightness=150)
-
-def led_off():
-    """Turn off LEDs"""
-    stop_current_pattern()
-    send_led_command("off", brightness=0)
-
-# ===== HIGH-LEVEL PATTERN FUNCTIONS =====
-
-def start_startup_pattern():
-    """Start the 40-second startup pattern"""
-    start_pattern_thread(startup_pattern)
-
-def start_listening_pattern():
-    """Start blue loading pattern for listening"""
-    start_pattern_thread(blue_loading_pattern)
-
-def start_speaking_pattern():
-    """Start purple pattern for robot speaking"""
-    start_pattern_thread(purple_speaking_pattern)
-
-def start_processing_pattern():
-    """Start yellow pattern for analysis/optimization"""
-    start_pattern_thread(yellow_processing_pattern)
-
-def stop_all_patterns():
-    """Stop all patterns and turn off LEDs"""
-    stop_current_pattern()
-    led_off()
+def send_led_pattern_blocking(pattern: str):
+    """Send LED pattern synchronously (blocking)"""
+    return _send_led_command_direct(pattern)
 
 def test_connection():
-    """Test if ESP32 is reachable"""
+    """Check if ESP32 is reachable"""
     try:
-        response = requests.get(f"{BASE_URL}/status", timeout=3)
+        response = requests.get(f"{BASE_URL}/status", timeout=2)
         if response.status_code == 200:
             print(Fore.GREEN + "[LED] ESP32 connection OK")
             return True
         else:
-            print(Fore.RED + "[LED] ESP32 responded but with error")
+            print(Fore.RED + "[LED] ESP32 responded with error")
             return False
     except:
-        print(Fore.RED + "[LED] Cannot reach ESP32. Check IP address and connection.")
+        print(Fore.RED + "[LED] Cannot reach ESP32. Check IP and connection.")
         return False
 
-# Test the connection when imported
+# Convenient pattern functions
+def start_startup_pattern():
+    send_led_pattern("startup")
+
+def start_listening_pattern():
+    send_led_pattern("blue_loading")
+
+def start_speaking_pattern():
+    send_led_pattern("purple_speaking")
+
+def start_processing_pattern():
+    send_led_pattern("yellow_processing")
+
+def led_good():
+    send_led_pattern("green")
+
+def led_too_loud():
+    send_led_pattern("red")
+
+def led_too_soft():
+    send_led_pattern("orange")
+
+def led_long_pause():
+    send_led_pattern("red")
+
+def led_off():
+    send_led_pattern("off")
+  
+def stop_all_patterns():
+    """Stop the LED command thread and turn off LEDs immediately."""
+    global stop_led_thread
+    # Turn off LEDs first
+    _send_led_command_direct("off")
+    # Stop the LED system so no more patterns run
+    stop_led_thread = True
+    led_queue.queue.clear()  # clear any pending patterns
+    led_queue.put("STOP")    # signal thread to exit
+
+
+
 if __name__ == "__main__":
-    print("Testing ESP32 connection...")
+    print("=== LED Controller Test ===")
     if test_connection():
         print("Testing LED patterns...")
-        
-        # Test startup pattern (shortened for testing)
-        print("Testing startup pattern...")
-        send_led_command("startup", brightness=120, speed=300)
+        send_led_pattern_blocking("startup")
         time.sleep(3)
-        
-        # Test other patterns
-        print("Testing blue loading...")
         start_listening_pattern()
         time.sleep(2)
-        
-        print("Testing purple speaking...")
         start_speaking_pattern()
         time.sleep(2)
-        
-        print("Testing yellow processing...")
         start_processing_pattern()
         time.sleep(2)
-        
-        # Test feedback colors
-        print("Testing feedback colors...")
         led_good()
         time.sleep(1)
         led_too_loud()
         time.sleep(1)
         led_too_soft()
         time.sleep(1)
-        
-        # Turn off
         led_off()
-        print("Test complete!")
+        print("LED test complete.")
     else:
-        print("Please check ESP32 IP address and make sure it's running.")
+        print("Check ESP32 IP and connection.")
