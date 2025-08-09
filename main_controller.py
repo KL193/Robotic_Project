@@ -117,9 +117,9 @@ def main():
                 if led_connected:
                     start_speaking_pattern()
 
-                send_gesture("handsup")
+                send_gesture("handtogether")
                 speak_text(f"This is your {count} time practicing today. Keep it up!")
-                send_gesture("point")
+               # send_gesture("point")
                 speak_text("Let's begin. Start your presentation after the beep.")
                 send_gesture("relax")
 
