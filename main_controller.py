@@ -228,7 +228,7 @@ def wait_for_user_decision(temp_file, led_connected):
                     speak_text("Sorry, there was an error with the presentation.")
                 send_gesture("relax")
                 break
-            elif "goodbye" in lower or "exit" in lower:
+            elif "goodbye" in lower or "bye" in lower:
                 if led_connected:
                     start_speaking_pattern()
                 send_gesture("handsdown")

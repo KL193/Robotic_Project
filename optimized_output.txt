@@ -1,5 +1,5 @@
-Today, I'd like to talk to you about biology.
+I am excited to present our proposal for a new robotics project—an amazing tool designed to build your confidence and revolutionize how you practice for presentations.
 
-At its core, biology is the study of life itself—from the tiniest microorganism to the largest creatures on Earth, including ourselves. It helps us understand the fundamental processes of how living things grow, reproduce, adapt, and interact with their environment.
+At its core, the system uses a Raspberry Pi, an OLED display, and is powered by Python.
 
-The insights from biology are crucial. They allow us to understand the human body, advance medicine, improve agriculture, and tackle our most pressing environmental challenges. It is a subject profoundly connected to our everyday lives.
+Imagine no longer having to worry about your university presentations. This project is designed to help you deliver your message with boldness and confidence, empowering you to succeed.
