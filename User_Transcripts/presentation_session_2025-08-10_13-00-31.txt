@@ -1,0 +1,23 @@
+SPEAKZ PRESENTATION SESSION REPORT
+==================================================
+Date & Time: 2025-08-10 13:00:31
+Session ID: 2025-08-10_13-00-31
+
+ORIGINAL TRANSCRIPT:
+--------------------
+good morning all of you today i am going to present about our robotic project proposal it called speaks we use raspberry pi esp 32 as hardware components and we use microsoft azure gemini apis software components so speech is going to help you in your presentation practicing speaks is really helpful robot for your university projects thank you very much
+
+OPTIMIZED VERSION:
+-----------------
+Good morning, everyone.
+
+Today, I am excited to present our robotic project proposal, named "Speax."
+
+For our hardware, we are utilizing a Raspberry Pi and an ESP32. On the software side, we are leveraging the power of Microsoft Azure and Google's Gemini APIs.
+
+The core purpose of Speax is to help you practice and master your presentation skills, making it an incredibly helpful tool for university projects and beyond.
+
+Thank you.
+
+==================================================
+End of Session Report
