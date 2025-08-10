@@ -1,0 +1,19 @@
+SPEAKZ PRESENTATION SESSION REPORT
+==================================================
+Date & Time: 2025-08-10 00:53:57
+Session ID: 2025-08-10_00-53-57
+
+ORIGINAL TRANSCRIPT:
+--------------------
+today i am going to present about our robotic project proposal its course speaks speaks is going to help you in your presentation practicing so it will be we use raspberry pi esp 32 oled screens for the esp for the implement in this robot and we use gemini api microsoft azure for the software and speaks will be help you in your presentation practicing there will be a most of a chance you will be present your presentation
+
+OPTIMIZED VERSION:
+-----------------
+Today, I am proud to present our robotic project proposal: Speaks.
+
+Speaks is designed to be your personal coach for presentation practice. To bring this robot to life, we will use a combination of a Raspberry Pi, ESP32 microcontrollers, and integrated OLED screens. The software will be powered by cutting-edge technology, utilizing the Gemini API and Microsoft Azure.
+
+Our goal is to help you practice effectively, so you can deliver every presentation with confidence and make a lasting impact.
+
+==================================================
+End of Session Report

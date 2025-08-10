@@ -1,5 +1,3 @@
-Today, I'd like to talk to you about biology.
+Good morning, everyone. We are here today to present our robotic project proposal, which we call 'Speaks.'
 
-At its core, biology is the study of life itself—from the tiniest microorganism to the largest creatures on Earth, including ourselves. It helps us understand the fundamental processes of how living things grow, reproduce, adapt, and interact with their environment.
-
-The insights from biology are crucial. They allow us to understand the human body, advance medicine, improve agriculture, and tackle our most pressing environmental challenges. It is a subject profoundly connected to our everyday lives.
+Speaks is a new tool designed to help you practice and perfect your presentations. For the hardware, we will be using a Raspberry Pi and an ESP32. On the software side, we will leverage the power of Microsoft Azure and Gemini.

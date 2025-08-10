@@ -26,11 +26,9 @@ def speak_text(text):
 def speak_with_gesture(text, gesture=None):
     """Speak text and do gesture at the SAME time"""
     if gesture:
-        # Start gesture in background thread
         gesture_thread = threading.Thread(target=send_gesture, args=(gesture,))
         gesture_thread.start()
     
-    # Speak at same time
     speak_text(text)
     
     if gesture:
@@ -72,17 +70,14 @@ def update_practice_log():
     today = datetime.now().strftime("%Y-%m-%d")
     log_data = {}
 
-    # Read existing log
     if os.path.exists(LOG_FILE):
         with open(LOG_FILE, "r") as f:
             for line in f:
                 date, count = line.strip().split(": ")
                 log_data[date] = int(count)
 
-    # Update today's count
     log_data[today] = log_data.get(today, 0) + 1
 
-    # Save updated log
     with open(LOG_FILE, "w") as f:
         for date, count in log_data.items():
             f.write(f"{date}: {count}\n")
@@ -98,6 +93,7 @@ def record_and_analyze():
         print("[INFO] Recording and analysis finished.")
     except subprocess.CalledProcessError as e:
         print(f"[ERROR] Could not run script: {e}")
+        speak_with_gesture("Sorry, there was an error with the recording.", "handsdown")
 
 # ==== Ask to Practice with Retry Loop ====
 def ask_practice():
@@ -111,10 +107,11 @@ def ask_practice():
             if "yes" in lower_response:
                 count = update_practice_log()
                 
-                speak_with_gesture(f"This is your {count} time practicing today. Keep it up!", "handsup")
+                speak_with_gesture(f"This is your {count} time practicing today. Great job!", "handsup")
                 speak_with_gesture("Let's begin. Start your presentation after the beep.", "point")
                 send_gesture("relax")
                 record_and_analyze()
+                speak_with_gesture("Feedback delivered! Ready for another practice?", "handtogether")
                 break
 
             elif "no" in lower_response:
@@ -126,7 +123,6 @@ def ask_practice():
 
 # ==== Wake Word Loop ====
 def listen_for_wake_word():
-    # Start with relaxed position
     send_gesture("relax")
     
     while True:
