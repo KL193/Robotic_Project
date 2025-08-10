@@ -1,3 +1,9 @@
-Good morning, everyone. We are here today to present our robotic project proposal, which we call 'Speaks.'
+Good morning, everyone.
 
-Speaks is a new tool designed to help you practice and perfect your presentations. For the hardware, we will be using a Raspberry Pi and an ESP32. On the software side, we will leverage the power of Microsoft Azure and Gemini.
+Today, I am excited to present our robotic project proposal, named "Speax."
+
+For our hardware, we are utilizing a Raspberry Pi and an ESP32. On the software side, we are leveraging the power of Microsoft Azure and Google's Gemini APIs.
+
+The core purpose of Speax is to help you practice and master your presentation skills, making it an incredibly helpful tool for university projects and beyond.
+
+Thank you.
