@@ -1,5 +1,3 @@
-I am excited to present our proposal for a new robotics project—an amazing tool designed to build your confidence and revolutionize how you practice for presentations.
+Good morning, everyone. We are here today to present our robotic project proposal, which we call 'Speaks.'
 
-At its core, the system uses a Raspberry Pi, an OLED display, and is powered by Python.
-
-Imagine no longer having to worry about your university presentations. This project is designed to help you deliver your message with boldness and confidence, empowering you to succeed.
+Speaks is a new tool designed to help you practice and perfect your presentations. For the hardware, we will be using a Raspberry Pi and an ESP32. On the software side, we will leverage the power of Microsoft Azure and Gemini.

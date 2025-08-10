@@ -1,0 +1,23 @@
+SPEAKZ PRESENTATION SESSION REPORT
+==================================================
+Date & Time: 2025-08-10 01:28:56
+Session ID: 2025-08-10_01-28-56
+
+ORIGINAL TRANSCRIPT:
+--------------------
+today i am going to present about speaks is help you in your presentation practicing we use esp 32 raspberry pi as a hardware components and we use azure gemini api and python for the as the software parts so speech in your presentation practicing if you use space there will be a most of a chance you can be bought in your presentations in your university or working place so you speak will be help you in your presentation practicing so you can be the greatest in the presentation practicing so good luck
+
+OPTIMIZED VERSION:
+-----------------
+Today, I'm excited to introduce "Speaks," a tool designed to help you master your presentation skills.
+
+Our system is built using an ESP32 and a Raspberry Pi for the hardware components. On the software side, we leverage Python, integrated with the powerful Azure and Gemini APIs.
+
+We developed Speaks because we know how critical it is to deliver an outstanding presentation, whether you're in university or at your workplace. This tool acts as your personal practice partner, helping you refine your delivery so you can present with confidence.
+
+By using Speaks, you can significantly improve your performance, ensuring you stand out and make a lasting impact on your audience. Our goal is to empower you to become the best presenter you can be.
+
+Thank you.
+
+==================================================
+End of Session Report

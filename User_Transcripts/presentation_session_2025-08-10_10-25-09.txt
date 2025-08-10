@@ -1,0 +1,17 @@
+SPEAKZ PRESENTATION SESSION REPORT
+==================================================
+Date & Time: 2025-08-10 10:25:09
+Session ID: 2025-08-10_10-25-09
+
+ORIGINAL TRANSCRIPT:
+--------------------
+good morning all of you today we are going to present about our robotic project proposal it's called as peaks speaks is going to help you in your presentation practice in telugu good morning all of you today we are going to present about our robotic project proposal its course speaks so speaks is going to help you in your presentation practicing we use raspberry pi esp 32 as the hardware components and we use microsoft azure and gemini as the software
+
+OPTIMIZED VERSION:
+-----------------
+Good morning, everyone. We are here today to present our robotic project proposal, which we call 'Speaks.'
+
+Speaks is a new tool designed to help you practice and perfect your presentations. For the hardware, we will be using a Raspberry Pi and an ESP32. On the software side, we will leverage the power of Microsoft Azure and Gemini.
+
+==================================================
+End of Session Report

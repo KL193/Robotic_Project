@@ -1,0 +1,4 @@
+Volume: 137.9 deciBel
+Pauses: 5
+Speech Speed: 70.3 WPM
+Filler Count: 1

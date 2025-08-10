@@ -8,21 +8,23 @@ import datetime
 from colorama import Fore, init
 import speech_recognition as sr
 from gemini_optimize import optimize_presentation_script
-from speakz_greeting import speak_text
+from speakz_greeting import speak_text, speak_with_gesture
 from led_controller import led_good, led_too_loud, led_too_soft, led_long_pause, led_off, test_connection, start_processing_pattern
+import random
+import pygame
 
 init(autoreset=True)
 
 # ===== CONFIG =====
 duration = 40
 sample_rate = 44100
-threshold_volume = 0.01
-pause_threshold_sec = 0.3
-
-# Real-time analysis thresholds
-threshold_volume_loud = 0.05  # Too loud threshold
-threshold_volume_soft = 0.005  # Too soft threshold
-realtime_pause_threshold = 1.0  # Long pause threshold for LED (1 second)
+threshold_db_good_min = 60
+threshold_db_good_max = 80
+threshold_db_soft = 55
+threshold_db_loud = 85
+pause_threshold_sec = 1.0
+realtime_pause_threshold = 2.0
+CHIME_AUDIO_FILE = "waiting.mp3"  # Reuses main_controller.py chime
 
 filler_words = {
     "um", "uh", "er", "ah", "hmm",
@@ -34,16 +36,86 @@ filler_words = {
     "anyway", "stuff like that", "things like that"
 }
 
-# Global variables for real-time analysis - FIXED: Added missing variables
+# Feedback message variations
+VOLUME_GOOD = [
+    "Great volume at {volume:.1f} decibel! You're hitting the sweet spot!",
+    "Your voice was perfect at {volume:.1f} decibel, keep it up!",
+    "Awesome clarity at {volume:.1f} decibel, well done!"
+]
+VOLUME_LOUD = [
+    "Whoa, your volume was a booming {volume:.1f} decibel! Try softening it a bit.",
+    "Your voice was loud at {volume:.1f} decibel! Speak a tad quieter for comfort.",
+    "Powerful delivery at {volume:.1f} decibel! Tone it down slightly for balance."
+]
+VOLUME_SOFT = [
+    "Your volume was a bit low at {volume:.1f} decibel. Project more to shine!",
+    "A bit quiet at {volume:.1f} decibel! Speak up to grab attention.",
+    "Your voice was soft at {volume:.1f} decibel. Boost it for clarity!"
+]
+PAUSE_MANY = [
+    "You had {pauses} long pauses, which may disrupt flow. Try keeping pauses brief.",
+    "{pauses} long pauses detected. Shorten them for a smoother delivery!",
+    "With {pauses} pauses, your speech felt choppy. Aim for briefer pauses."
+]
+PAUSE_FEW = [
+    "Your {pauses} pause(s) added great emphasis, nice work!",
+    "{pauses} pause(s) gave your speech nice rhythm, well done!",
+    "Good use of {pauses} pause(s) to highlight key points!"
+]
+PAUSE_NONE = [
+    "Smooth delivery with no long pauses, fantastic!",
+    "You kept the flow going with zero long pauses, great job!",
+    "No unnecessary pauses, your speech was fluid and engaging!"
+]
+FILLER_MANY = [
+    "You used {total_filler_count} filler words ({percent:.1f}%). Try cutting back for polish: {fillers}.",
+    "{total_filler_count} fillers ({percent:.1f}%) slipped in. Reduce them for a crisp delivery: {fillers}.",
+    "Your speech had {total_filler_count} fillers ({percent:.1f}%). Skip some for a smoother flow: {fillers}."
+]
+FILLER_OK = [
+    "Nice job with just {total_filler_count} filler words, that’s great for natural speech!",
+    "Only {total_filler_count} fillers, you’re keeping it clean and clear!",
+    "Great work with minimal fillers ({total_filler_count}), your speech flows well!"
+]
+SPEED_SLOW = [
+    "Your pace was slow at {speech_speed_wpm:.1f} WPM. Speed up a bit to keep the energy high!",
+    "A bit leisurely at {speech_speed_wpm:.1f} WPM. Try a faster pace for engagement.",
+    "Your speed was {speech_speed_wpm:.1f} WPM. Pick up the tempo slightly!"
+]
+SPEED_FAST = [
+    "Your pace was fast at {speech_speed_wpm:.1f} WPM. Slow down for better clarity!",
+    "Zooming at {speech_speed_wpm:.1f} WPM! Ease up to let your words sink in.",
+    "Rapid fire at {speech_speed_wpm:.1f} WPM! Try a slower pace for impact."
+]
+SPEED_OK = [
+    "Perfect pace at {speech_speed_wpm:.1f} WPM, you’re spot on!",
+    "Great speed of {speech_speed_wpm:.1f} WPM, keeping the audience hooked!",
+    "Your {speech_speed_wpm:.1f} WPM pace was ideal, well done!"
+]
+WRAP_UP = [
+    "Great effort! Let’s keep polishing your presentation skills!",
+    "Awesome session! Ready to take your speech to the next level?",
+    "Fantastic work! Let’s make your next practice even better!"
+]
+ACTIONABLE_TIPS = [
+   # "Try pausing briefly instead of saying ‘um’ or ‘uh’ for a polished delivery.",
+    "Practice projecting your voice to hit that ideal volume range.",
+    "Aim for a steady pace to keep your audience engaged throughout.",
+    "Use short pauses to emphasize key points without breaking the flow."
+]
+
+# Global variables for real-time analysis
 led_connected = False
 silence_start_time = None
 audio_buffer = []
-last_led_time = 0  # FIXED: Added this missing variable
-led_cooldown_sec = 0.1  # FIXED: Added LED cooldown (100ms)
-last_led_state = None  # Track last LED state to avoid redundant calls
+last_led_time = 0
+led_cooldown_sec = 0.1
+last_led_state = None
+
+def amplitude_to_db(amplitude):
+    return 20 * np.log10(np.abs(amplitude) + 1e-10) + 90
 
 def check_led_connection():
-    """Test ESP32 connection at startup"""
     global led_connected
     led_connected = test_connection()
     if not led_connected:
@@ -51,20 +123,13 @@ def check_led_connection():
     return led_connected
 
 def save_user_transcript_copy(optimized_text, original_transcript):
-    """Save a timestamped copy of both original and optimized transcripts for user access"""
     try:
-        # Create a user-friendly folder path
         user_transcripts_folder = r"D:\uoj\4 th year\Robotics\Speakz-Greetings\Robotic_Project\User_Transcripts"
-        
-        # Make sure the folder exists
         os.makedirs(user_transcripts_folder, exist_ok=True)
-        
-        # Create timestamped filename
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         user_filename = f"presentation_session_{timestamp}.txt"
         user_file_path = os.path.join(user_transcripts_folder, user_filename)
         
-        # Create comprehensive session report
         session_content = f"""SPEAKZ PRESENTATION SESSION REPORT
 {'='*50}
 Date & Time: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
@@ -81,14 +146,10 @@ OPTIMIZED VERSION:
 {'='*50}
 End of Session Report
 """
-        
-        # Save the session report
         with open(user_file_path, "w", encoding="utf-8") as f:
             f.write(session_content)
-        
         print(Fore.CYAN + f"💾 User session saved to: User_Transcripts/{user_filename}")
         return user_file_path
-        
     except Exception as e:
         print(Fore.YELLOW + f"⚠️ Warning: Could not save user transcript copy: {e}")
         return None
@@ -99,20 +160,15 @@ def update_led_realtime(chunk):
     if not led_connected:
         return
 
-    # Convert to float32 if needed
     if chunk.dtype == np.int16 or chunk.dtype == np.int32:
         chunk = chunk.astype(np.float32) / 32767
 
-    # Calculate volume
-    volume = np.abs(chunk).mean()
+    volume = amplitude_to_db(np.abs(chunk).mean())
+    is_silence = volume < threshold_db_soft
 
-    # Check if it's silence (potential pause)
-    is_silence = volume < threshold_volume_soft
-
-    # LED cooldown check
     now = time.time()
     if now - last_led_time < led_cooldown_sec:
-        return  # Skip LED update if within cooldown
+        return
 
     current_led_state = None
 
@@ -124,17 +180,15 @@ def update_led_realtime(chunk):
             if silence_duration > realtime_pause_threshold:
                 current_led_state = "long_pause"
     else:
-        silence_start_time = None  # Reset silence timer
+        silence_start_time = None
 
-        # Check volume levels
-        if volume > threshold_volume_loud:
+        if volume > threshold_db_loud:
             current_led_state = "too_loud"
-        elif volume < threshold_volume_soft:
+        elif volume < threshold_db_soft:
             current_led_state = "too_soft"
         else:
             current_led_state = "good"
 
-    # Only send LED command if state changed (avoid redundant calls)
     if current_led_state and current_led_state != last_led_state:
         try:
             if current_led_state == "good":
@@ -145,35 +199,22 @@ def update_led_realtime(chunk):
                 led_too_soft()
             elif current_led_state == "long_pause":
                 led_long_pause()
-            
             last_led_state = current_led_state
             last_led_time = now
-            
-            # Debug output (optional - comment out if too verbose)
-            print(f"\r[LED] Volume: {volume:.4f} -> {current_led_state}         ", end="", flush=True)
-            
+            print(f"\r[LED] Volume: {volume:.1f} dB -> {current_led_state}         ", end="", flush=True)
         except Exception as e:
             print(f"\n[LED ERROR] {e}")
 
 def audio_callback(indata, frames, time, status):
-    """Real-time audio callback for LED feedback"""
     global audio_buffer
-    
     if status:
         print(f'Audio callback error: {status}')
-    
-    # Add to buffer for final processing
     audio_buffer.append(indata.copy())
-    
-    # Real-time LED analysis
     chunk = indata.flatten()
     update_led_realtime(chunk)
-    
-    # Print real-time feedback (less verbose version)
-    volume = np.abs(chunk).mean()
-    print(f"\r{Fore.CYAN}🎤 Recording... Vol: {volume:.4f}   ", end="", flush=True)
+    volume = amplitude_to_db(np.abs(chunk).mean())
+    print(f"\r{Fore.CYAN}🎤 Recording... Vol: {volume:.1f} dB   ", end="", flush=True)
 
-# ===== UTIL =====
 def simulate_led(color, message):
     color_map = {
         "green": Fore.GREEN,
@@ -191,19 +232,51 @@ def blink_led(color, times=3):
         print(" ", end="\r")
         time.sleep(0.2)
 
-# ===== AUDIO RECORD WITH REAL-TIME LEDs =====
+def play_feedback_chime():
+    try:
+        pygame.mixer.init()
+        pygame.mixer.music.load(CHIME_AUDIO_FILE)
+        pygame.mixer.music.play()
+        while pygame.mixer.music.get_busy():
+            time.sleep(0.1)
+    except Exception as e:
+        print(f"[WARNING] Could not play feedback chime: {e}")
+
+def transcribe_audio(filename, max_retries=3):
+    recognizer = sr.Recognizer()
+    retries = 0
+    
+    while retries < max_retries:
+        with sr.AudioFile(filename) as source:
+            audio_data = recognizer.record(source)
+        try:
+            text = recognizer.recognize_google(audio_data)
+            print(Fore.WHITE + f"\n🗣️ Transcription: {text}")
+            return text.lower()
+        except sr.UnknownValueError:
+            retries += 1
+            print(Fore.YELLOW + f"[WARNING] Speech unintelligible. {max_retries - retries} retries left.")
+            if retries < max_retries:
+                speak_with_gesture(random.choice([
+                    "My ears are on strike! Try speaking clearly one more time!",
+                    "Whoops, I missed that! Please record again clearly!",
+                   # "My circuits are confused! One more try, please!"
+                ]), "handtogether")
+        except sr.RequestError as e:
+            print(Fore.RED + f"❌ Google Speech error: {e}")
+            return ""
+    
+    print(Fore.YELLOW + "[INFO] Max retries reached. Please type your transcript.")
+    return input("Type your transcript: ").lower()
+
 def record_audio(filename="recording.wav"):
     global audio_buffer, led_connected, silence_start_time, last_led_time, last_led_state
-    
-    # Reset all global variables
     audio_buffer = []
     silence_start_time = None
     last_led_time = 0
     last_led_state = None
     
-    # Check LED connection
     check_led_connection()
-    
     print(Fore.CYAN + "🎤 Recording started with real-time LED feedback...")
     if led_connected:
         print(Fore.WHITE + "Green = Good | Red = Too loud/Long pause | Orange = Too soft")
@@ -212,71 +285,48 @@ def record_audio(filename="recording.wav"):
     
     simulate_led("blue", "Listening...")
     
-    # Record with real-time callback
     try:
         with sd.InputStream(samplerate=sample_rate, channels=1, 
                           callback=audio_callback, dtype='float32'):
-            sd.sleep(int(duration * 1000))  # Convert to milliseconds
+            sd.sleep(int(duration * 1000))
     except Exception as e:
         print(f"\n{Fore.RED}Recording error: {e}")
         return None, None
     
-    # Turn off LEDs when done
     if led_connected:
         led_off()
     
     print(f"\n{Fore.CYAN}✅ Recording complete!")
     
-    # Combine all audio chunks
     if audio_buffer:
         audio = np.concatenate(audio_buffer, axis=0).flatten()
-        
-        # Save to file
         audio_int16 = np.int16(audio * 32767)
         wav.write(filename, sample_rate, audio_int16)
         print(Fore.CYAN + "💾 Recording saved.")
-        
         return filename, audio_int16.flatten()
     else:
         print(Fore.RED + "❌ No audio recorded!")
         return None, None
 
-# ===== TRANSCRIBE =====
-def transcribe_audio(filename):
-    recognizer = sr.Recognizer()
-    with sr.AudioFile(filename) as source:
-        audio_data = recognizer.record(source)
-    try:
-        text = recognizer.recognize_google(audio_data)
-        print(Fore.WHITE + f"\n🗣️ Transcription: {text}")
-        return text.lower()
-    except sr.UnknownValueError:
-        print(Fore.RED + "❌ Speech was unintelligible.")
-        return ""
-    except sr.RequestError as e:
-        print(Fore.RED + f"❌ Google Speech error: {e}")
-        return ""
-
-# ===== AUDIO ANALYSIS =====
 def analyze_audio(audio_data):
     if audio_data.dtype == np.int16 or audio_data.dtype == np.int32:
         audio_data = audio_data.astype(np.float32) / 32767
 
-    volume = np.abs(audio_data).mean()
+    volume = amplitude_to_db(np.abs(audio_data).mean())
     duration_secs = len(audio_data) / sample_rate
-    silence_ratio = np.sum(np.abs(audio_data) < threshold_volume) / len(audio_data)
+    silence_ratio = np.sum(amplitude_to_db(np.abs(audio_data)) < threshold_db_soft) / len(audio_data)
 
-    print(Fore.WHITE + f"\n🔍 Duration: {duration_secs:.2f} sec | Avg Volume: {volume:.5f} | Silence: {silence_ratio:.2%}")
+    print(Fore.WHITE + f"\n🔍 Duration: {duration_secs:.2f} sec | Avg Volume: {volume:.1f} dB | Silence: {silence_ratio:.2%}")
 
-    if volume > 0.05:
+    if volume > threshold_db_loud:
         simulate_led("red", "⚠️ Too loud!")
-    elif volume < 0.005:
+    elif volume < threshold_db_soft:
         simulate_led("red", "⚠️ Too soft or silent")
     else:
         simulate_led("green", "✅ Volume is good")
 
     frame_size = int(sample_rate * 0.05)
-    silent_frames = np.abs(audio_data) < threshold_volume
+    silent_frames = amplitude_to_db(np.abs(audio_data)) < threshold_db_soft
     pauses = 0
     pause_durations = []
 
@@ -299,7 +349,7 @@ def analyze_audio(audio_data):
             pauses += 1
             pause_durations.append(pause_length_sec)
 
-    if pauses > 3:
+    if pauses > 5:
         blink_led("yellow", times=3)
         print(Fore.YELLOW + f"⚠️ Too many pauses detected: {pauses}")
     elif pauses > 0:
@@ -309,7 +359,6 @@ def analyze_audio(audio_data):
 
     return pauses, pause_durations
 
-# ===== TRANSCRIPT ANALYSIS =====
 def analyze_transcript(text, duration_secs, pauses):
     if not text:
         print(Fore.RED + "No transcript to analyze.")
@@ -336,9 +385,9 @@ def analyze_transcript(text, duration_secs, pauses):
     else:
         simulate_led("green", "✅ Filler usage okay")
 
-    if speech_speed_wpm < 100:
+    if speech_speed_wpm < 120:
         simulate_led("yellow", "⚠️ Too slow")
-    elif speech_speed_wpm > 160:
+    elif speech_speed_wpm > 150:
         simulate_led("yellow", "⚠️ Too fast")
     else:
         simulate_led("green", "✅ Speed okay")
@@ -350,43 +399,72 @@ def analyze_transcript(text, duration_secs, pauses):
         "speech_speed_wpm": speech_speed_wpm
     }
 
-# ===== FEEDBACK SUMMARY =====
 def generate_feedback_summary(volume, pauses, pause_durations, filler_count_map, total_filler_count, total_words, speech_speed_wpm):
-    summary = []
-
-    if volume > 0.05:
-        summary.append("Your voice was too loud at times.")
-    elif volume < 0.005:
-        summary.append("Your voice was too soft or almost silent.")
+    feedback_lines = []
+    
+    # Volume feedback
+    if volume > threshold_db_loud:
+        feedback_lines.append(random.choice(VOLUME_LOUD).format(volume=volume))
+    elif volume < threshold_db_soft:
+        feedback_lines.append(random.choice(VOLUME_SOFT).format(volume=volume))
     else:
-        summary.append("Your speaking volume was good.")
-
-    if pauses > 3:
-        summary.append(f"You had {pauses} long pauses, which could break flow.")
+        feedback_lines.append(random.choice(VOLUME_GOOD).format(volume=volume))
+    
+    # Pause feedback
+    if pauses > 5:
+        feedback_lines.append(random.choice(PAUSE_MANY).format(pauses=pauses))
     elif pauses > 0:
-        summary.append(f"You had {pauses} noticeable pause(s), but not excessive.")
+        feedback_lines.append(random.choice(PAUSE_FEW).format(pauses=pauses))
     else:
-        summary.append("You spoke fluidly without unnecessary pauses.")
-
+        feedback_lines.append(random.choice(PAUSE_NONE))
+    
+    # Filler feedback
     if total_filler_count > 0:
-        filler_msg = f"You used {total_filler_count} filler words. "
-        filler_msg += "Try to reduce them for a more polished delivery." if total_filler_count > 3 else "That's a reasonable amount."
-        if filler_count_map:
-            filler_msg += " You said: " + ", ".join(f"'{k}' ({v})" for k, v in filler_count_map.items()) + "."
-        summary.append(filler_msg)
+        percent = (total_filler_count / total_words) * 100 if total_words > 0 else 0
+        fillers = ", ".join(f"'{k}' ({v})" for k, v in filler_count_map.items())
+        if total_filler_count > 3:
+            feedback_lines.append(random.choice(FILLER_MANY).format(total_filler_count=total_filler_count, percent=percent, fillers=fillers))
+        else:
+            feedback_lines.append(random.choice(FILLER_OK).format(total_filler_count=total_filler_count))
     else:
-        summary.append("Great job! No filler words detected.")
-
-    if speech_speed_wpm < 100:
-        summary.append(f"Your speech was slow ({speech_speed_wpm:.1f} WPM).")
-    elif speech_speed_wpm > 160:
-        summary.append(f"Your speech was fast ({speech_speed_wpm:.1f} WPM).")
+        feedback_lines.append(random.choice(FILLER_OK).format(total_filler_count=0))
+    
+    # Speed feedback
+    if speech_speed_wpm < 120:
+        feedback_lines.append(random.choice(SPEED_SLOW).format(speech_speed_wpm=speech_speed_wpm))
+    elif speech_speed_wpm > 150:
+        feedback_lines.append(random.choice(SPEED_FAST).format(speech_speed_wpm=speech_speed_wpm))
     else:
-        summary.append(f"Your speech speed ({speech_speed_wpm:.1f} WPM) was ideal.")
+        feedback_lines.append(random.choice(SPEED_OK).format(speech_speed_wpm=speech_speed_wpm))
+    
+    # Select actionable tip based on weakest metric
+    weaknesses = []
+    if volume > threshold_db_loud or volume < threshold_db_soft:
+        weaknesses.append("volume")
+    if pauses > 5:
+        weaknesses.append("pauses")
+    if total_filler_count > 3:
+        weaknesses.append("fillers")
+    if speech_speed_wpm < 120 or speech_speed_wpm > 150:
+        weaknesses.append("speed")
+    
+    tip = random.choice(ACTIONABLE_TIPS)
+    if weaknesses:
+        weak_area = random.choice(weaknesses)
+        if weak_area == "volume":
+            tip = "Practice projecting your voice to hit that ideal volume range."
+        elif weak_area == "pauses":
+            tip = "Use short pauses to emphasize key points without breaking the flow."
+      #  elif weak_area == "fillers":
+       #     tip = "Try pausing briefly instead of saying ‘um’ or ‘uh’ for a polished delivery."
+        elif weak_area == "speed":
+            tip = "Aim for a steady pace to keep your audience engaged throughout."
+    
+    feedback_lines.append(random.choice(WRAP_UP))
+    feedback_lines.append(tip)
+    
+    return feedback_lines
 
-    return " ".join(summary)
-
-# ===== MAIN RUN =====
 if __name__ == "__main__":
     print(Fore.CYAN + "🤖 Starting Speech Analysis with LED Feedback System")
     print(Fore.WHITE + "=" * 60)
@@ -399,8 +477,8 @@ if __name__ == "__main__":
         transcript_analysis = analyze_transcript(transcript, duration, pauses)
 
         if transcript and transcript_analysis:
-            volume = np.abs(audio).mean()
-            feedback = generate_feedback_summary(
+            volume = amplitude_to_db(np.abs(audio).mean())
+            feedback_lines = generate_feedback_summary(
                 volume=volume,
                 pauses=pauses,
                 pause_durations=pause_durations,
@@ -410,20 +488,33 @@ if __name__ == "__main__":
                 speech_speed_wpm=transcript_analysis["speech_speed_wpm"]
             )
 
+            # Save feedback metrics to feedback.txt
+            with open("feedback.txt", "w", encoding="utf-8") as f:
+                f.write(f"Volume: {volume:.1f} deciBel\n")
+                f.write(f"Pauses: {pauses}\n")
+                f.write(f"Speech Speed: {transcript_analysis['speech_speed_wpm']:.1f} WPM\n")
+                f.write(f"Filler Count: {transcript_analysis['total_filler_count']}\n")
+
             print("\n" + Fore.MAGENTA + "🗣️ Feedback Summary Before Optimization:\n")
-            print(Fore.WHITE + feedback)
+            print(Fore.WHITE + "\n".join(feedback_lines[:-2]))  # Print all but wrap-up and tip
 
             try:
                 print(Fore.CYAN + "\n🔊 Delivering feedback with Azure...\n")
-                # Yellow processing pattern while giving feedback
                 if led_connected:
                     start_processing_pattern()
-                speak_text(feedback)
+                play_feedback_chime()
+                speak_with_gesture("Here’s your feedback to level up your presentation!", "handsup")
+                for line in feedback_lines[:-1]:  # Speak all but the last tip
+                    gesture = "handsup" if "Great" in line or "Perfect" in line or "Nice" in line else "handtogether"
+                    speak_with_gesture(line, gesture)
+                    time.sleep(0.5)  # Short pause for clarity
+                speak_with_gesture(f"Pro tip: {feedback_lines[-1]}", "handsup")  # Speak actionable tip
+                if led_connected:
+                    led_off()
             except Exception as e:
                 print(Fore.RED + f"⚠️ TTS error: {e}")
 
             print(Fore.GREEN + "\n✨ Optimizing script with Gemini...\n")
-            # Keep yellow processing pattern during Gemini optimization
             if led_connected:
                 start_processing_pattern()
             optimized_script = optimize_presentation_script(transcript)
@@ -431,18 +522,11 @@ if __name__ == "__main__":
             if optimized_script.strip():
                 print(Fore.CYAN + "\n📝 Optimized Script:\n")
                 print(optimized_script)
-                
-                # Save the main system file (required by main_controller.py)
                 with open("optimized_output.txt", "w", encoding="utf-8") as f:
                     f.write(optimized_script)
-                
-                # Save user copy with timestamp for future reference
                 user_file = save_user_transcript_copy(optimized_script, transcript)
-                
-                # Turn off processing pattern when done
                 if led_connected:
                     led_off()
-                    
                 print(Fore.GREEN + "\n✅ Analysis complete! Check 'optimized_output.txt' for results.")
                 if user_file:
                     print(Fore.CYAN + "💾 User session report saved for future reference!")
