@@ -1,0 +1,17 @@
+SPEAKZ PRESENTATION SESSION REPORT
+==================================================
+Date & Time: 2025-08-11 14:49:28
+Session ID: 2025-08-11_14-49-28
+
+ORIGINAL TRANSCRIPT:
+--------------------
+good morning all of you today i am going to present about robotic project proposal it's called speech so speaks is going to help you in your presentation practicing we use raspberry pi esp 32 as the hardware components and we use like you know basically we use azure gemini apis of tag components so this is really helpful in your presentation practicing so do
+
+OPTIMIZED VERSION:
+-----------------
+Good morning, everyone. Today, I'm here to present our project proposal, called SPEECH.
+
+SPEECH is a tool designed to help you practice and improve your presentation skills. For the hardware, we are using a Raspberry Pi and an ESP32. On the software side, our technology stack is built on powerful Azure and Gemini APIs. We believe this will be an incredibly valuable tool for anyone looking to perfect their presentations.
+
+==================================================
+End of Session Report

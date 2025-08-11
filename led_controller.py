@@ -88,7 +88,7 @@ def test_connection():
 
 # Convenient pattern functions
 def start_startup_pattern():
-    send_led_pattern("startup")
+    send_led_pattern("rainbow")
 
 def start_listening_pattern():
     send_led_pattern("blue_loading")

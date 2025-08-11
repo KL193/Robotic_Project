@@ -1,0 +1,19 @@
+SPEAKZ PRESENTATION SESSION REPORT
+==================================================
+Date & Time: 2025-08-11 14:39:59
+Session ID: 2025-08-11_14-39-59
+
+ORIGINAL TRANSCRIPT:
+--------------------
+good morning everyone today i am going to present about our robotic project proposal we called as peaks speaks is going to help you in your presentation practicing so we use esp 32 raspberry pi and a lady as the hardware components and we use azure gemini api and components help to interpretation practicing in university and your birth place so it is really helpful robot in your presentation practice
+
+OPTIMIZED VERSION:
+-----------------
+Good morning, everyone. Today, I'm excited to present our robotic project proposal, which we call PEAKS.
+
+PEAKS is a robot designed to help you master your presentation skills. For our hardware, we are using an ESP32, a Raspberry Pi, and an OLED display. On the software side, we are leveraging powerful artificial intelligence through the Azure and Gemini APIs.
+
+These components work together to analyze your practice sessions, providing valuable feedback to help you improve. This makes PEAKS an incredibly helpful tool for anyone looking to enhance their presentation abilities, whether at university or in the workplace. It is a personal coach designed to help you practice and perfect your delivery.
+
+==================================================
+End of Session Report
