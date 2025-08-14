@@ -107,7 +107,7 @@ def main():
 
     while True:
         print("[WAITING] Say 'Hi' or 'Hey Speakz' to start.")
-
+-
         if led_connected:
             start_listening_pattern()
 
