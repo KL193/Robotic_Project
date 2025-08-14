@@ -1,0 +1,17 @@
+SPEAKZ PRESENTATION SESSION REPORT
+==================================================
+Date & Time: 2025-08-10 20:02:50
+Session ID: 2025-08-10_20-02-50
+
+ORIGINAL TRANSCRIPT:
+--------------------
+good morning everyone today i am going to explain about what is cloud computing so simply cloud computing means we connect we connect to the programs and data we are the internet and we do instead of accessing the computer hardware
+
+OPTIMIZED VERSION:
+-----------------
+Good morning, everyone. Today, I'm going to explain what cloud computing is.
+
+Simply put, cloud computing means connecting to your programs and data via the internet, instead of accessing them directly from your computer's hardware.
+
+==================================================
+End of Session Report

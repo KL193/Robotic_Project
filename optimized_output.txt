@@ -1,9 +1,3 @@
-Good morning, everyone.
+Good morning, everyone. Today, I'm here to present our project proposal, called SPEECH.
 
-Today, I am excited to present our robotic project proposal, named "Speax."
-
-For our hardware, we are utilizing a Raspberry Pi and an ESP32. On the software side, we are leveraging the power of Microsoft Azure and Google's Gemini APIs.
-
-The core purpose of Speax is to help you practice and master your presentation skills, making it an incredibly helpful tool for university projects and beyond.
-
-Thank you.
+SPEECH is a tool designed to help you practice and improve your presentation skills. For the hardware, we are using a Raspberry Pi and an ESP32. On the software side, our technology stack is built on powerful Azure and Gemini APIs. We believe this will be an incredibly valuable tool for anyone looking to perfect their presentations.

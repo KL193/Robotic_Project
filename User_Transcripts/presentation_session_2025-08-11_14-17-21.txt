@@ -1,0 +1,17 @@
+SPEAKZ PRESENTATION SESSION REPORT
+==================================================
+Date & Time: 2025-08-11 14:17:21
+Session ID: 2025-08-11_14-17-21
+
+ORIGINAL TRANSCRIPT:
+--------------------
+hello good morning everyone today i am going to explain about what is cloud computing so in simply cloud computing means accessing data and program we are the internet instead of accessing that directly that your computer's hardware so you think we have a lot of benefits and there are some disadvantages also so so
+
+OPTIMIZED VERSION:
+-----------------
+Good morning, everyone. Today, we're going to discuss cloud computing.
+
+In simple terms, cloud computing is the practice of accessing data and programs over the internet, instead of directly from your computer's hard drive. This technology offers a wealth of benefits, but it also comes with some disadvantages, both of which we will explore.
+
+==================================================
+End of Session Report
